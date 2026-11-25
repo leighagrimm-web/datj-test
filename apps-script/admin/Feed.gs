@@ -82,7 +82,8 @@ function feedSources_() {
     // (the links saved in the admin, so a new season's sheet is picked up on its own)
     var cal = FEED.readCompany(tabsOf(idOf(ce.sheet), 'Company Calendar'));
     var comps = (ce.comps || []).slice();
-    var fresh = FEED.readComps(tabsOf(idOf(ce.compSheet), 'Competition'));
+    // One sheet can hold both (Rehearsals and Competitions tabs side by side): no competition link = the same sheet
+    var fresh = FEED.readComps(tabsOf(idOf(ce.compSheet) || idOf(ce.sheet), 'Competition'));
     // The sheet's times win; a blank cell keeps what the admin already has (e.g. the dates with their year)
     if (fresh.length) comps = fresh.map(function (x) {
       var old = comps.filter(function (o) { return o.id === x.id; })[0] || {}, o = Object.assign({}, old);
