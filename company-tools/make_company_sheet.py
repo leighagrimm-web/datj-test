@@ -3,7 +3,8 @@ Company Rehearsal Calendar, via parse_rehearsals.py) and Competitions + Routines
 competition (from the studio calendar). Private (dancer names): the .xlsx stays out of the repo (.gitignore *.xlsx).
 
 python3 parse_rehearsals.py "Company Rehearsal Calendar.xlsx" raw.json
-python3 make_company_sheet.py raw.json content.json Company_Sheet_2026-27.xlsx
+python3 make_company_sheet.py raw.json content.json Company_Sheet_2026-27.xlsx [groups.json]
+(groups.json: [["Jazz Large Group", "Ava S, Bella M, ..."], ...], also private)
 Then upload the .xlsx to the season's Google account, File > Save as Google Sheets, and paste its link on the admin's
 Company Central screen."""
 import json, re, sys, datetime as dt, openpyxl
@@ -12,6 +13,7 @@ from openpyxl.worksheet.datavalidation import DataValidation
 from openpyxl.utils import get_column_letter as L
 
 RAW, CONTENT, OUT = sys.argv[1:4]
+GROUPS = json.load(open(sys.argv[4], encoding='utf-8')) if len(sys.argv) > 4 else []
 HERE = __file__.replace('\\', '/').rsplit('/', 1)[0] + '/..'
 raw = json.load(open(RAW, encoding='utf-8'))
 content = json.load(open(CONTENT, encoding='utf-8'))
@@ -121,7 +123,7 @@ sheet('Competitions', 'One row per competition. "Tab name" matches the schedule 
 sheet('Routines', 'Fill in once a season. The costume checklist comes from this tab. Leave a cell empty instead of typing "--".',
       ['Song', 'Dancers', 'Choreographer', 'Tights?', 'Hair', 'Hairpiece', 'Shoes', 'Accessories', 'Props'], [], [24, 40, 14, 9, 22, 20, 14, 18, 14])
 sheet('Groups', 'One row per group dance: Group = exactly what the Dancers column says on Routines. Company teams fill in from the website’s team rosters.',
-      ['Group', 'Dancers'], [], [24, 80])
+      ['Group', 'Dancers'], GROUPS, [28, 110])
 for c in comps:
     sheet(c[0], 'Paste the ' + c[1] + ' schedule here when it comes in. For awards, type AWARDS as the Song. Stage is optional.',
           ['Day', 'Entry #', 'Song', 'Arrival', 'Est. performance', 'Note', 'Stage'], [], [10, 9, 26, 10, 16, 30, 8])
