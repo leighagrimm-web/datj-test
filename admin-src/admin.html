@@ -424,6 +424,9 @@
 
   // ---------- Studio Pro classes, for "styles they teach" ----------
   let CLASSES = (window.DATJ_CLASSES && window.DATJ_CLASSES.classes) || [];
+  // The copy built into this page can be older than the site's classes.json (the nightly sync and Refresh update that file),
+  // so load the current one: new classes then show in the Teachers list straight away.
+  fetch('classes.json', { cache: 'no-cache' }).then(r => r.ok ? r.json() : null).then(j => { if (j && Array.isArray(j.classes) && j.classes.length) { CLASSES = j.classes; if (document.querySelector('#main [data-teach]')) render(); } }).catch(() => {});
   const TEACH = window.DATJ_TEACHERS || {};
   // Teacher for each Studio Pro class: Brittany's pick in the admin, else the saved list. A class that came back with a new time
   // keeps the teacher it had on the same day (marked "check"); a brand-new class needs a teacher.
@@ -837,8 +840,10 @@
         const b = document.getElementById('dspRefresh'); if (b) b.textContent = 'Saving to the website…';
         const res = await api('saveclasses', { classes: list });
         if (!res.ok) { dspMsg = res.code === 'signin' ? 'Please sign in again, then Refresh.' : (res.error || 'Couldn’t save the schedule. Try again in a minute.'); dspBusy = false; return render(); }
+        CLASSES = list; const noT = list.filter(c => !teachOf(c)).length;
         dspMsg = '✓ ' + (res.unchanged ? 'Checked Studio Pro: the website already has the latest ' + res.count + ' classes.' : 'Refreshed ' + res.count + ' classes from Studio Pro. The website shows them in about a minute, and the printable schedule updates a few minutes after.')
-          + (changes.length && !res.unchanged ? '\nWhat changed:\n• ' + changes.slice(0, 15).join('\n• ') + (changes.length > 15 ? '\n…and ' + (changes.length - 15) + ' more' : '') : '');
+          + (changes.length && !res.unchanged ? '\nWhat changed:\n• ' + changes.slice(0, 15).join('\n• ') + (changes.length > 15 ? '\n…and ' + (changes.length - 15) + ' more' : '') : '')
+          + (noT ? '\n' + noT + ' class' + (noT === 1 ? ' needs' : 'es need') + ' a teacher: pick them under Teachers below (highlighted at the top). Every other class keeps its teacher.' : '');
         dspBusy = false; return render();
       }
       localStorage.setItem('datj-classes-refresh', JSON.stringify({ updated: new Date().toISOString(), classes: list }));
