@@ -26,7 +26,7 @@ END:DAYLIGHT
 END:VTIMEZONE
 BEGIN:VEVENT
 UID:cal-newfam@danceandallthatjazz.com
-DTSTAMP:20261125T200051Z
+DTSTAMP:20261125T203152Z
 DTSTART;VALUE=DATE:20261118
 DTEND;VALUE=DATE:20261119
 TRANSP:TRANSPARENT
@@ -37,23 +37,23 @@ DESCRIPTION:Studio calendar: https://leighagrimm-web.github.io/datj-test/fa
 END:VEVENT
 BEGIN:VEVENT
 UID:cal-dress@danceandallthatjazz.com
-DTSTAMP:20261125T200051Z
+DTSTAMP:20261125T203152Z
 DTSTART;VALUE=DATE:20270519
 DTEND;VALUE=DATE:20270522
 TRANSP:TRANSPARENT
 SUMMARY:Dress rehearsals
-LOCATION:Wheeling High School
+LOCATION:Wheeling High School\, 900 S Elmhurst Rd\, Wheeling\, IL 60090
 DESCRIPTION:Studio calendar: https://leighagrimm-web.github.io/datj-test/fa
  milies.html#calendar
 END:VEVENT
 BEGIN:VEVENT
 UID:cal-perf@danceandallthatjazz.com
-DTSTAMP:20261125T200051Z
+DTSTAMP:20261125T203152Z
 DTSTART;VALUE=DATE:20270522
 DTEND;VALUE=DATE:20270524
 TRANSP:TRANSPARENT
 SUMMARY:14th Annual Performance
-LOCATION:Wheeling High School
+LOCATION:Wheeling High School\, 900 S Elmhurst Rd\, Wheeling\, IL 60090
 DESCRIPTION:Studio calendar: https://leighagrimm-web.github.io/datj-test/fa
  milies.html#calendar
 END:VEVENT
