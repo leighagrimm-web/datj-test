@@ -1148,6 +1148,16 @@
   const sheetId = (u) => { const m = /\/d\/([a-zA-Z0-9_-]{20,})/.exec(String(u || '')); return m ? m[1] : ''; };
   const NEED = { 'Competitions': 'tab', 'Routines': 'song', 'Groups': 'group', 'Arrival reminders': 'heading', 'Events': 'what' };
   function sheetTabs(url, names, headerOf) { const id = sheetId(url); if (!id) return Promise.reject(new Error('That doesn’t look like a Google Sheet link. Copy it from the address bar while the sheet is open.'));
+    // With a server: read the tabs privately, exactly as the sheet shows them (Google's public CSV view guesses one type
+    // per column and drops text such as the "Start" header in a column of dates)
+    if (ENV) return api('sheettabs', { sheet: url, tabs: names }).then(res => {
+      if (!res.ok) throw new Error(res.error || 'Couldn’t read the sheet.');
+      const wb = { SheetNames: [], Sheets: {}, fromSheet: true };
+      names.forEach(n => { const rows = (res.tabs || {})[n]; if (!rows || !rows.length) return; const need = headerOf(n);
+        if (need && !rows.slice(0, 6).some(r => r.some(x => String(x).trim().toLowerCase().startsWith(need)))) return;
+        wb.SheetNames.push(n); wb.Sheets[n] = XLSX.utils.aoa_to_sheet(rows); });
+      if (!wb.SheetNames.length) throw new Error('That sheet doesn’t have the expected tab (' + names.join(', ') + ').');
+      return wb; });
     return Promise.all(names.map(n => fetch('https://docs.google.com/spreadsheets/d/' + id + '/gviz/tq?tqx=out:csv&headers=0&sheet=' + encodeURIComponent(n), { credentials: 'omit' }).then(r => r.ok ? r.text() : '').catch(() => '')))
       .then(txts => { const wb = { SheetNames: [], Sheets: {}, fromSheet: true };
         txts.forEach((t, i) => { if (!t || /^\s*</.test(t)) return; const w = XLSX.read(t, { type: 'string', raw: true }); const ws = w.Sheets[w.SheetNames[0]];
@@ -1182,11 +1192,15 @@
       const key = (e) => String(e.title).trim().toLowerCase() + '|' + e.start; const cur = {}; draft.calendar.forEach(e => { cur[key(e)] = e; });
       const F = ['end', 'where', 'type', 'lock', 'hidden', 'iWhen', 'iWhere', 'iBody']; const add = [], chg = [], seen = {};
       out.items.forEach(it => { const k = key(it); seen[k] = 1; const ex = cur[k]; keepLocked(it, ex); if (!ex) add.push(it); else if (F.some(f => String(ex[f] || '') !== String(it[f] || ''))) chg.push(it); });
-      const gone = draft.calendar.filter(e => !seen[key(e)] && !isPast(e));
+      let gone = draft.calendar.filter(e => !seen[key(e)] && !isPast(e));
+      // A date whose title is once in the sheet and once here, with only the dates different, was moved: a change, not new + gone
+      const tl = (e) => String(e.title).trim().toLowerCase(), inSheet = {}; out.items.forEach(it => { inSheet[tl(it)] = (inSheet[tl(it)] || 0) + 1; });
+      add.slice().forEach(it => { const was = gone.filter(e => tl(e) === tl(it)); if (was.length !== 1 || inSheet[tl(it)] !== 1 || draft.calendar.filter(e => tl(e) === tl(it)).length !== 1) return;
+        keepLocked(it, was[0]); it._ex = was[0]; it._from = was[0].start; chg.push(it); add.splice(add.indexOf(it), 1); gone = gone.filter(e => e !== was[0]); });
       calPending = { add: add, chg: chg, gone: gone, key: key };
       calMsg = (!add.length && !chg.length && !gone.length) ? '✓ Checked your sheet: nothing changed since last time.' : calPendingHtml(); render(); })
     .catch(e => { calMsg = esc((e && e.message) || 'Couldn’t reach the sheet.'); render(); }); }
-  function calPendingHtml() { const P = calPending; const li = (arr, pre) => arr.slice(0, 25).map(e => '<li>' + pre + ' ' + esc(e.title) + ' · ' + fmtRange(e.start, e.end) + '</li>').join('');
+  function calPendingHtml() { const P = calPending; const li = (arr, pre) => arr.slice(0, 25).map(e => '<li>' + pre + ' ' + esc(e.title) + ' · ' + fmtRange(e.start, e.end) + (e._from ? ' <span style="color: var(--mut);">(moved from ' + fmtRange(e._from) + ')</span>' : '') + '</li>').join('');
     return '<b>Updates from your sheet:</b> ' + P.add.length + ' new, ' + P.chg.length + ' changed' + (P.gone.length ? ', ' + P.gone.length + ' on the site but not in your sheet' : '') + '<ul style="margin: 6px 0 10px; padding-left: 18px;">' + li(P.add, '➕') + li(P.chg, '✏️') + li(P.gone, '❓') + '</ul>'
       + (P.gone.length ? '<label class="check" style="display: block; margin-bottom: 10px;"><input type="checkbox" id="calGone"> Also remove the ' + P.gone.length + ' date' + (P.gone.length === 1 ? '' : 's') + ' marked ❓</label>' : '')
       + '<button type="button" class="btn primary" data-calapply="yes">Apply these updates</button> <button type="button" class="btn ghost" data-calapply="no">Not now</button><p class="hint">Applying puts them in your draft. Tap any date below to see how families will see it, then Publish.</p>'; }
@@ -1621,7 +1635,7 @@
     if (d.compcheck) { compCheck(); return; }
     if (d.compundo) { const U = compUndo; if (U) { const i = draft.coEdit.comps.findIndex(x => x.id === U.id); if (i > -1) { if (U.existed) draft.coEdit.comps[i] = U.before; else draft.coEdit.comps.splice(i, 1); } compUndo = null; saveDraft(); compMsg = 'Undone. The schedule is back to what it was.'; render(); } return; }
     if (d.calcheck) { calCheck(); return; }
-    if (d.calapply) { const P = calPending; if (d.calapply === 'yes' && P) { let a = 0, u = 0; P.add.forEach(it => { draft.calendar.push(it); a++; }); P.chg.forEach(it => { const ex = draft.calendar.find(e => P.key(e) === P.key(it)); if (ex) { const id = ex.id; Object.assign(ex, it, { id: id || it.id }); u++; } });
+    if (d.calapply) { const P = calPending; if (d.calapply === 'yes' && P) { let a = 0, u = 0; P.add.forEach(it => { draft.calendar.push(it); a++; }); P.chg.forEach(it => { const ex = (it._ex && draft.calendar.includes(it._ex)) ? it._ex : draft.calendar.find(e => P.key(e) === P.key(it)); if (ex) { const id = ex.id, c = Object.assign({}, it); delete c._ex; delete c._from; Object.assign(ex, c, { id: id || it.id }); u++; } });
         let r = 0; const g = $('calGone'); if (g && g.checked) { draft.calendar = draft.calendar.filter(e => !P.gone.includes(e)); r = P.gone.length; }
         sortCal(); saveDraft(); calMsg = '✓ Applied: ' + a + ' new, ' + u + ' updated' + (r ? ', ' + r + ' removed' : '') + '. Families see them after you Publish.'; } else calMsg = ''; calPending = null; render(); return; }
     if (d.season) { draft.season.on = d.season === 'on'; saveDraft(); render(); toast(draft.season.on ? 'Between seasons page is on. Preview it, then Publish.' : 'Between seasons page is off.'); return; }

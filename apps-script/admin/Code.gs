@@ -128,6 +128,7 @@ function doPost(e) {
     if (req.action === 'savelock') return json_(saveLock_(req));
     if (req.action === 'locks') return json_({ ok: true, locks: locks_() });
     // The Company sheet's rehearsals, days off and groups, for Publish to put in the locked Company file (Feed.gs)
+    if (req.action === 'sheettabs') return json_(sheetTabs_(req));
     if (req.action === 'companysheet') { var cs = readCompanySheet_({ sheet: String(req.sheet || ''), compSheet: String(req.compSheet || '') });
       return json_({ ok: cs.ok, rehearsals: cs.rehearsals, off: cs.off, groups: cs.groups, error: cs.error }); }
     return json_({ ok: false, error: 'Unknown action.' });

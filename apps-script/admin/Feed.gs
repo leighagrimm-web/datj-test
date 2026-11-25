@@ -122,6 +122,28 @@ function readCompanySheet_(ce) {
     groups: (fresh[0] && fresh[0].groups) || {}, error: errors.join(' ') };
 }
 
+// The admin's "Check for updates" (Studio calendar, competition schedules): some tabs of a sheet, exactly as Google
+// Sheets shows them, read privately with this script's account (no "Anyone with the link" needed).
+// { ok, tabs: { name: rows | null }, error }
+function sheetTabs_(req) {
+  var m = /\/d\/([a-zA-Z0-9_-]{20,})/.exec(String(req.sheet || ''));
+  if (!m) return { ok: false, error: 'That doesn’t look like a Google Sheet link. Copy it from the address bar while the sheet is open.' };
+  var names = (Array.isArray(req.tabs) ? req.tabs : []).slice(0, 20).map(String);
+  var ss;
+  try { ss = SpreadsheetApp.openById(m[1]); } catch (err) {
+    var e = String(err && err.message || err);
+    return { ok: false, error: /specified permissions|not sufficient|authoriz/i.test(e) ? 'The script isn’t allowed to read other Google Sheets yet. In the Apps Script editor, run setup once and click Allow.'
+      : /not supported|document type|xlsx|office/i.test(e) ? 'That link is an Excel file. Open the Google Sheets copy (same name, no .XLSX tag) and paste its link instead.'
+      : 'Couldn’t open that sheet with the studio’s Google account. It has to be in that account’s Drive or shared with it.' };
+  }
+  var all = ss.getSheets(), norm = function (x) { return String(x).toLowerCase().replace(/[^a-z0-9]/g, ''); }, tabs = {};
+  names.forEach(function (n) {
+    var sh = ss.getSheetByName(n) || all.filter(function (x) { return norm(x.getName()) === norm(n); })[0];
+    tabs[n] = sh ? sh.getDataRange().getDisplayValues() : null;
+  });
+  return { ok: true, tabs: tabs };
+}
+
 // Details of "Company families only" dates, the way the locked Company file has them ({when, where, summary})
 function lockedInfo_(calendar) {
   var o = {};
