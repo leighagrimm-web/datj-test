@@ -68,28 +68,7 @@ function feedSources_() {
     var cache = CacheService.getScriptCache(), keys = ['src0', 'src1', 'src2', 'src3'], got = cache.getAll(keys);
     if (got.src0) { var txt = keys.map(function (k) { return got[k] || ''; }).join(''); try { return JSON.parse(txt); } catch (x) {} }
     var last = lastVersion_(), c = (last && last.content) || {}, ce = c.coEdit || {};
-    var idOf = function (u) { var m = /\/d\/([a-zA-Z0-9_-]{20,})/.exec(String(u || '')); return m ? m[1] : ''; };
-    var tabsOf = function (id, what) {
-      var ss = null;
-      if (id) { try { ss = SpreadsheetApp.openById(id); } catch (err) { console.error('Couldn’t open the ' + what + ' sheet', id, err); } }
-      return function (name) {
-        if (!ss) return [];
-        var sh = ss.getSheetByName(name) || ss.getSheets().filter(function (x) { return x.getName().toLowerCase().replace(/[^a-z0-9]/g, '') === String(name).toLowerCase().replace(/[^a-z0-9]/g, ''); })[0];
-        return sh ? sh.getDataRange().getDisplayValues() : [];
-      };
-    };
-    // Rehearsals + days off from the Company Calendar sheet; competitions + groups from the Competition sheet
-    // (the links saved in the admin, so a new season's sheet is picked up on its own)
-    var cal = FEED.readCompany(tabsOf(idOf(ce.sheet), 'Company Calendar'));
-    var comps = (ce.comps || []).slice();
-    // One sheet can hold both (Rehearsals and Competitions tabs side by side): no competition link = the same sheet
-    var fresh = FEED.readComps(tabsOf(idOf(ce.compSheet) || idOf(ce.sheet), 'Competition'));
-    // The sheet's times win; a blank cell keeps what the admin already has (e.g. the dates with their year)
-    if (fresh.length) comps = fresh.map(function (x) {
-      var old = comps.filter(function (o) { return o.id === x.id; })[0] || {}, o = Object.assign({}, old);
-      Object.keys(x).forEach(function (k) { if (x[k] !== '' && x[k] != null) o[k] = x[k]; });
-      return o;
-    });
+    var sh = readCompanySheet_(ce), cal = sh, comps = sh.comps;
     var out = {
       co: { rehearsals: cal.rehearsals, off: cal.off, comps: comps, due: ce.due || [], locked: lockedInfo_(c.calendar) },
       cal: c.calendar || [], teams: ((c.lists || {}).teams) || [], siteUrl: siteUrl_()
@@ -99,6 +78,40 @@ function feedSources_() {
     if (s.length <= 95000 * keys.length) { try { cache.putAll(parts, FEED_CACHE_SECONDS); } catch (x) {} }
     return out;
   } finally { lock.releaseLock(); }
+}
+
+// The Company sheet(s) linked on the admin's Company Central screen, read privately with this script's account:
+// { ok, rehearsals, off, comps (sheet times on top of the admin's), groups: {name: [dancers]}, error }
+function readCompanySheet_(ce) {
+  ce = ce || {};
+  var idOf = function (u) { var m = /\/d\/([a-zA-Z0-9_-]{20,})/.exec(String(u || '')); return m ? m[1] : ''; };
+  var errors = [];
+  var tabsOf = function (id, what) {
+    var ss = null;
+    if (!id) errors.push('No ' + what + ' sheet link is saved yet.');
+    else { try { ss = SpreadsheetApp.openById(id); } catch (err) { console.error('Couldn’t open the ' + what + ' sheet', id, err); errors.push('The ' + what + ' sheet couldn’t be opened. It has to be a Google Sheet (not an .xlsx file) that the studio’s Google account can open.'); } }
+    return function (name) {
+      if (!ss) return [];
+      var sh = ss.getSheetByName(name) || ss.getSheets().filter(function (x) { return x.getName().toLowerCase().replace(/[^a-z0-9]/g, '') === String(name).toLowerCase().replace(/[^a-z0-9]/g, ''); })[0];
+      return sh ? sh.getDataRange().getDisplayValues() : [];
+    };
+  };
+  // Rehearsals + days off from the Company Calendar sheet; competitions + groups from the Competition sheet
+  // (the links saved in the admin, so a new season's sheet is picked up on its own)
+  var compId = idOf(ce.compSheet) || idOf(ce.sheet), calId = idOf(ce.sheet);
+  var calTabs = tabsOf(calId, 'Company Calendar');
+  var cal = FEED.readCompany(calTabs);
+  var comps = (ce.comps || []).slice();
+  // One sheet can hold both (Rehearsals and Competitions tabs side by side): no competition link = the same sheet
+  var fresh = FEED.readComps(compId === calId ? calTabs : tabsOf(compId, 'Competition'));
+  // The sheet's times win; a blank cell keeps what the admin already has (e.g. the dates with their year)
+  if (fresh.length) comps = fresh.map(function (x) {
+    var old = comps.filter(function (o) { return o.id === x.id; })[0] || {}, o = Object.assign({}, old);
+    Object.keys(x).forEach(function (k) { if (x[k] !== '' && x[k] != null) o[k] = x[k]; });
+    return o;
+  });
+  return { ok: !errors.length || cal.rehearsals.length > 0, rehearsals: cal.rehearsals, off: cal.off, comps: comps,
+    groups: (fresh[0] && fresh[0].groups) || {}, error: errors.join(' ') };
 }
 
 // Details of "Company families only" dates, the way the locked Company file has them ({when, where, summary})

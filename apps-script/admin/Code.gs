@@ -127,6 +127,9 @@ function doPost(e) {
     if (req.action === 'history') return json_({ ok: true, versions: history_(20) });
     if (req.action === 'savelock') return json_(saveLock_(req));
     if (req.action === 'locks') return json_({ ok: true, locks: locks_() });
+    // The Company sheet's rehearsals, days off and groups, for Publish to put in the locked Company file (Feed.gs)
+    if (req.action === 'companysheet') { var cs = readCompanySheet_({ sheet: String(req.sheet || ''), compSheet: String(req.compSheet || '') });
+      return json_({ ok: cs.ok, rehearsals: cs.rehearsals, off: cs.off, groups: cs.groups, error: cs.error }); }
     return json_({ ok: false, error: 'Unknown action.' });
   } catch (err) {
     console.error(req.action, err && err.stack || err);
@@ -237,6 +240,9 @@ function publish_(email, req) {
     var after = locks_(); Object.keys(newPw).forEach(function (k) { after[k] = newPw[k]; });
     if (after.company && after.company === after.recital) pwErr.push('The Company and Families passwords need to be different, or every family could open Company Central.');
     if (pwErr.length) return { ok: false, code: 'invalid', error: 'Some things need fixing before this can go live:', errors: pwErr };
+    // Only a re-locked file (e.g. new rehearsals from the Company sheet) still goes out as a version
+    if (last && !changed.length && req.enc && Object.keys(req.enc).some(function (k) { return req.enc[k]; }))
+      changed.push(req.enc.company ? 'Company Central (from the Company sheet)' : 'Annual Performance details');
     if (last && !changed.length) return { ok: true, unchanged: true, version: latest, publishedAt: last.at, content: last.content };
 
     // Private parts that changed must come with their re-encrypted file, or families would keep seeing the old ones.

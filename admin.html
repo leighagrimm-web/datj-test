@@ -553,9 +553,9 @@
       if (res.locks) useLocks(res.locks);
       newPw.forEach(k => { try { localStorage.setItem(SEALED[k].ls, sealed.newLocks[k]); } catch (e) {} setPwNext(k, ''); });
       useServer(res.content, res.version, res.publishedAt); draft = clone(live); clearDraft(); render();
-      if (res.unchanged) return toast('Nothing new to publish. Everything is already live.');
+      if (res.unchanged) return sealed.sheetNote ? notice('<b>Nothing new to publish.</b> ' + esc(sealed.sheetNote)) : toast('Nothing new to publish. Everything is already live.');
       notice('✓ Published version ' + res.version + (res.changed && res.changed.length ? ' (' + esc(res.changed.join(', ')) + ')' : '') + '. The website shows it in about a minute.'
-        + newPw.map(k => '<br><b>' + esc(SEALED[k].name) + ' is now “' + esc(res.locks[k]) + '”.</b> ' + (k === 'company' ? 'Company families' : 'Families') + ' need it from now on, so send it in the welcome email.').join(''), true);
+        + newPw.map(k => '<br><b>' + esc(SEALED[k].name) + ' is now “' + esc(res.locks[k]) + '”.</b> ' + (k === 'company' ? 'Company families' : 'Families') + ' need it from now on, so send it in the welcome email.').join('') + (sealed.sheetNote ? '<br>' + esc(sealed.sheetNote) : ''), true);
       return;
     }
     if (res.code === 'signin') return signinAgain(res.error);
@@ -608,7 +608,7 @@
     recital: { file: 'recital.enc.json', ls: 'datj-fam-pw', name: 'Families password', what: 'Annual Performance “More details”' } };
   // Filled from the server on load (Script Properties, owner only), so Brittany never has to type them.
   const sealForce = new Set();
-  let feedKeyServer = '', coSynced = false;   // the dancer calendar key from the server; the Company file checked this visit   // locked files the server asked for on the last try
+  let feedKeyServer = '', coSynced = false, sheetCo = null;   // the dancer calendar key from the server; the Company file checked this visit   // locked files the server asked for on the last try
   const pwMem = { company: '', recital: '' }, pwServer = { company: '', recital: '' };
   // A new season's password waits here (this device only) until Publish re-locks the file with it.
   const pwNext = (() => { try { return Object.assign({ company: '', recital: '' }, JSON.parse(localStorage.getItem('datj-pw-next') || '{}')); } catch (e) { return { company: '', recital: '' }; } })();
@@ -662,20 +662,33 @@
     out.locked = Object.assign({}, old.locked || {});
     draft.calendar.forEach(e => { if (e.lock && (tr(e.iBody) || tr(e.iWhen) || tr(e.iWhere))) out.locked[e.id] = textToInfo(e.iBody, e.iWhen, e.iWhere); });
     out.hiddenCal = hiddenCal(draft);
-    if (feedKeyServer) out.feedKey = feedKeyServer;   // Company Central proves it's unlocked with this when a family subscribes
+    if (feedKeyServer) out.feedKey = feedKeyServer;
+    if (sheetCo) { out.rehearsals = sheetCo.rehearsals; out.off = sheetCo.off; out.groups = sheetCo.groups; }   // from the Company sheet   // Company Central proves it's unlocked with this when a family subscribes
     return out;
   }
   async function sealChanged() {
-    const out = { enc: {}, ask: [], wrong: [], newLocks: {} };
+    const out = { enc: {}, ask: [], wrong: [], newLocks: {}, sheetNote: '' };
+    // Company Central shows the Company sheet's rehearsals, days off and groups as of each Publish: read it (privately,
+    // through the server) and lock it into the Company file when it changed
+    sheetCo = null;
+    const ce = draft.coEdit || {};
+    if (ENV && (ce.sheet || ce.compSheet)) {
+      let cs; try { cs = await api('companysheet', { sheet: ce.sheet || '', compSheet: ce.compSheet || '' }); } catch (e) { cs = { ok: false, error: 'Couldn’t reach the server.' }; }
+      if (cs.ok && (cs.rehearsals || []).length) sheetCo = { rehearsals: cs.rehearsals, off: cs.off || [], groups: cs.groups || {} };
+      else out.sheetNote = 'Company Central still shows the last rehearsals it had: ' + (cs.error || 'the Company sheet has no rehearsals yet.');
+    }
+    const J = (x) => JSON.stringify(x === undefined ? null : x);
     for (const which of Object.keys(SEALED)) {
       let cur = null;
       if (!sealForce.has(which) && !pwNext[which] && privKey(which, draft) === privKey(which, live)) {
-        // Nothing private changed, but a Company file from before "Only on Company Central" dates moved into it gets them now
-        // and the dancer calendar key too (checked once per visit)
-        if (which !== 'company' || coSynced || (!hiddenCal(draft).length && !feedKeyServer)) continue;
+        // Nothing private changed, but the Company file still gets the "Only on Company Central" dates, the dancer
+        // calendar key and the Company sheet's rehearsals when they differ from what it holds
+        if (which !== 'company' || (!sheetCo && (coSynced || (!hiddenCal(draft).length && !feedKeyServer)))) continue;
         try { cur = await openCurrent(which); } catch (e) { cur = null; }
         const cd = (cur && cur.data) || {};
-        if (!cur || (JSON.stringify(cd.hiddenCal || []) === JSON.stringify(hiddenCal(draft)) && (!feedKeyServer || cd.feedKey === feedKeyServer))) { if (cur) coSynced = true; continue; }
+        const same = J(cd.hiddenCal || []) === J(hiddenCal(draft)) && (!feedKeyServer || cd.feedKey === feedKeyServer)
+          && (!sheetCo || (J(cd.rehearsals) === J(sheetCo.rehearsals) && J(cd.off) === J(sheetCo.off) && J(cd.groups || {}) === J(sheetCo.groups)));
+        if (!cur || same) { if (cur && !sheetCo) coSynced = true; continue; }
       }
       if (!cur) cur = await openCurrent(which);
       // Changed on another device since this page loaded: get the password the server has now and try again
@@ -1374,9 +1387,9 @@
               { k: 'ev', label: 'Button opens this calendar date', type: 'dropdown', opts: [''].concat(draft.calendar.map(e => e.id)), labels: Object.assign({ '': '— none —' }, Object.fromEntries(draft.calendar.map(e => [e.id, e.title + ' (' + fmtRange(e.start, e.end) + ')']))) },
               { k: 'url', label: 'Or a link', max: 300, opt: true, hint: 'Only if it isn’t a calendar date (e.g. a sign-up form).' }, { k: 'show', label: 'Showing on Company Central', type: 'check' }, { k: 'start', label: 'Start showing on', type: 'date', opt: true }, { k: 'end', label: 'Take it down after', type: 'date', opt: true }] }))
       + sec('This season', '', '<div class="panel"><div class="field"><label for="coSeason">Season ends on</label><input id="coSeason" type="date" value="' + esc(draft.coEdit.seasonEnd || '') + '"><p class="hint">“Coming up for Company” lists Company dates up to this day. Usually the week after the Annual Performance.</p></div></div>')
-      + sec('Rehearsal calendar', 'Comes straight from your Company Rehearsal Calendar spreadsheet. Keep editing it the way you do now; the site picks up changes every night.',
+      + sec('Rehearsal calendar', 'Comes from your Company sheet. Keep editing it there: subscribed dancer calendars pick up changes within about 10 minutes, and Company Central every time you Publish. Changed only the sheet? Press Update from the sheet.',
           '<div class="panel"><p style="margin: 0 0 10px;"><b>' + R.length + ' entries</b> on ' + new Set(R.map(r => r.date)).size + ' dates · ' + up.length + ' still to come · updated ' + esc(co.updated || '') + '</p>'
-          + field('coSheet', 'Company Calendar sheet link (rehearsals)', draft.coEdit.sheet, 400, { hint: 'The Company Calendar Google Sheet: one row per rehearsal. Company Central and every subscribed dancer calendar read this sheet, so when you start a new season, paste the new season’s sheet here.' }) + '</div>')
+          + field('coSheet', 'Company Calendar sheet link (rehearsals)', draft.coEdit.sheet, 400, { hint: 'The Company Calendar Google Sheet: one row per rehearsal. Company Central and every subscribed dancer calendar read this sheet, so when you start a new season, paste the new season’s sheet here.' }) + '<div class="row" style="margin-top: 4px;"><button type="button" class="btn" data-sheetsync="1">Update from the sheet</button><span class="hint">Puts the sheet’s latest rehearsals, days off and groups on Company Central now.</span></div></div>')
       + sec('Handbook', 'The topic tiles. Write each like a cheat sheet: headings and short points.', listEditor({ key: 'cotop', noun: 'a topic', get: () => draft.coEdit.topics, title: x => (x.icon ? x.icon + ' ' : '') + (x.t || 'New topic'), sub: x => x.d,
           preview: x => '<div class="lbl">When families open it</div><div class="pv-slide" style="margin-top: 0;"><div class="tg">Company families</div><h3>' + esc(x.t) + '</h3><p style="color: var(--mut);">' + esc(x.d) + '</p>' + bodyHtml(x.body || '') + '</div>',
           newItem: () => ({ id: 't' + Date.now(), icon: '★', t: '', d: '', body: '' }), fields: [{ k: 'icon', label: 'Icon', max: 2 }, { k: 't', label: 'Topic', max: 28 }, { k: 'd', label: 'One line', max: 80 }, { k: 'body', label: 'What it says', max: 4000, area: true, hint: '“## Heading”, then “- ” for each point. [Form name](https://…) for a button.' }] }))
@@ -1627,6 +1640,7 @@
     if (t.id === 'publishTop' || t.id === 'publishBar') return publish();
     if (d.pubforce) return publish(true);
     if (d.mergego) return mergeGo();
+    if (d.sheetsync) return publish(false);
     if (d.mkeep) { const [k, v] = d.mkeep.split(':'); if (merge) { merge.keep[k] = v; mergeNotice(); } return; }
     if (d.pubpw) return publishWithPw();
     if (d.accadd) return accAdd();
