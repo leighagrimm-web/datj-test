@@ -143,7 +143,9 @@ var FEED = (function () {
       return g ? g.some(function (n) { return hitQ(n); }) : true;
     };
     var out = [];
-    (co.rehearsals || []).filter(function (r) { return r.date >= from && (nameHit(r) || GROUPK[r.kind]) && inIt(r); }).forEach(function (r) {
+    // a rehearsal named after a group on the Groups tab (any size) counts too; inIt checks the dancer is in it
+    var isGroup = function (r) { return !!GG[String(r.what || '').replace(/\s*\(.*\)$/, '').trim().toLowerCase()]; };
+    (co.rehearsals || []).filter(function (r) { return r.date >= from && (nameHit(r) || GROUPK[r.kind] || isGroup(r)) && inIt(r); }).forEach(function (r) {
       var sp = span(r.time);
       out.push({ uid: 'reh-' + r.date + '-' + (sp ? pad(sp[0][0]) + pad(sp[0][1]) + pad(sp[1][0]) + pad(sp[1][1]) : String(r.time).replace(/\W/g, '')) + '-' + String(r.what).replace(/\W/g, '').slice(0, 24), date: r.date, t0: sp && sp[0], t1: sp && sp[1],
         title: (isShow(r) || /rehearsal/i.test(r.what) ? '' : 'Rehearsal: ') + r.what,

@@ -71,6 +71,18 @@ for e in raw['entries']:
     if m and e['teacher']:  # a rehearsal typed as a note, in a teacher's color
         add(e['date'], times(m.group(2)), '', e['teacher'], m.group(1)); continue
     skipped.append(e['date'] + ' ' + t)
+# A rehearsal written as a list of names that is clearly one of the groups (every name is in it, at most one dancer
+# missing, a short name like "Mila" counting for "Milana") gets the group's name, so the Groups tab decides who's in it
+first = lambda n: n.strip().split()[0].lower() if n.strip() else ''
+renamed = {}
+for r in rows:
+    names = [first(x) for x in re.split(r',|&', r[6]) if first(x)]
+    if len(names) < 5: continue
+    for g, members in GROUPS:
+        gm = [first(x) for x in members.split(',')]
+        hit = lambda n: any(m.startswith(n) for m in gm)
+        if all(hit(n) for n in names) and len(gm) - len(set(names)) <= 1:
+            renamed[r[6]] = g; r[6] = g; break
 rows.sort(key=lambda r: (r[0], r[2] or dt.time(23, 59), r[6]))
 off.sort(key=lambda r: r[0])
 
@@ -136,4 +148,5 @@ except Exception as err:
     print('No arrival reminders copied:', err)
 wb.save(OUT)
 print(len(rows), 'rehearsal rows (', len(weekly_days), 'weekly Saturdays x', len(raw['weekly']), 'slots ),', len(off), 'days off,', len(comps), 'competitions')
+print('Written as a group:'); [print('  ', g, '<-', k) for k, g in renamed.items()]
 print('Left on the studio calendar:'); [print('  ', s) for s in skipped]
