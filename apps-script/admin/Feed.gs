@@ -92,7 +92,8 @@ function readCompanySheet_(ce) {
     else { try { ss = SpreadsheetApp.openById(id); } catch (err) {
       console.error('Couldn’t open the ' + what + ' sheet', id, err);
       var m = String(err && err.message || err), link = ' (link …/d/' + id.slice(0, 8) + '…)';
-      errors.push(/not supported|document type|xlsx|office/i.test(m) ? 'The ' + what + ' link' + link + ' is an Excel file. Open the Google Sheets copy (same name, no .XLSX tag), copy its link and paste that here instead.'
+      errors.push(/specified permissions|not sufficient|authoriz/i.test(m) ? 'The script isn’t allowed to read other Google Sheets yet. In the Apps Script editor, run setup once and click Allow.'
+        : /not supported|document type|xlsx|office/i.test(m) ? 'The ' + what + ' link' + link + ' is an Excel file. Open the Google Sheets copy (same name, no .XLSX tag), copy its link and paste that here instead.'
         : /permission|access/i.test(m) ? 'The studio’s Google account can’t open the ' + what + ' sheet' + link + '. Upload it in that account’s Drive, or share it with that account as Viewer.'
         : /not found|does not exist|missing/i.test(m) ? 'The ' + what + ' sheet' + link + ' wasn’t found. Check the link saved here.'
         : 'The ' + what + ' sheet' + link + ' couldn’t be opened: ' + m.slice(0, 120));

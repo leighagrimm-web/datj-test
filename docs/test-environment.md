@@ -83,7 +83,7 @@ competition arrival / on-stage / awards times, "Only on Company Central" dates a
 
 `FEED_KEY` is made on its own the first time the admin loads; Publish puts it in the locked Company file (Company
 Central proves it's unlocked with it) and puts the feed's address in `content.json` (`_published.feed`). Links are
-saved on the **Calendar links** tab; untick Active to turn one off. Needs the read-only Sheets permission: after the
+saved on the **Calendar links** tab; untick Active to turn one off. Needs the full Google Sheets permission (Apps Script's spreadsheet tool can't open another Sheet with the read-only one; the script only reads the Company sheet): after the
 first deploy with it, run any function in the editor once and allow it, or the admin stops working until you do.
 
 ### Studio calendar feed
