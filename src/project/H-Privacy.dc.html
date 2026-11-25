@@ -755,7 +755,7 @@ class Component extends DCLogic {
       ...(() => { const s = this.state.sub; if (!s) return { subOpen: false, subBtns: [], subHow: [] };
         const isD = s === 'dancer', nm = String(this.state.coQ || '').trim().replace(/\s+/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
         const sf = !isD && SUBF[this.state.calF];
-        const https = isD ? (this.state.subCode ? (this.state.calUrl || this.state.feedUrl || SUB.FEED_URL) + '?c=' + this.state.subCode + (this.state.subPlus ? '&s=1' : '') : '') : SUB.base() + 'studio' + (sf ? sf[0] : '') + '.ics';
+        const https = isD ? (this.state.subCode ? (this.state.calUrl || this.state.feedUrl || SUB.FEED_URL) + '?cal=' + this.state.subCode + (this.state.subPlus ? '&s=1' : '') : '') : SUB.base() + 'studio' + (sf ? sf[0] : '') + '.ics';
         const calName = isD ? nm + ' · D&ATJ Company' : sf ? 'D&ATJ · ' + sf[1] : 'Dance & All That Jazz';
         const L = https ? SUB.links(https, calName) : null;
         const B = L ? [

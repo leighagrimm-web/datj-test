@@ -5,7 +5,7 @@
  * The page sends the dancer search ("Bella M") plus a proof that it knows the feed key (the key is inside the locked
  * Company file, so only families with the password have it). This saves a random code for that search on the
  * "Calendar links" tab and returns it. The link holds only the code, never the dancer's name:
- *   <public deployment>/exec?c=CODE
+ *   <public deployment>/exec?cal=CODE  (not ?c=: Google reserves it on Apps Script addresses)
  * Turning off a link that got shared: on the "Calendar links" tab, untick Active. The family subscribes again.
  *
  * What a dancer calendar is made from (one read shared by every link for 10 minutes):
@@ -22,7 +22,7 @@
 var LINKS_TAB = 'Calendar links';
 var FEED_CACHE_SECONDS = 600;
 
-// GET ?c=CODE
+// GET ?cal=CODE
 function feedGet_(p) {
   var row = findCode_(p.c);
   if (!row) return text_('This calendar link is turned off. Subscribe again from Company Central.');

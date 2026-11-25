@@ -96,8 +96,9 @@ function checkGitHub() {
 // owner in the public deployment, so helpers never need access to the Sheet, Drive or GitHub.
 // The URL holds no return address: the pass only ever goes to ADMIN_PAGE_URL.
 function doGet(e) {
-  // A dancer calendar link (public deployment): see Feed.gs
-  if (e && e.parameter && e.parameter.c) return feedGet_(e.parameter);
+  // A dancer calendar link (public deployment): see Feed.gs. The code is ?cal=… because Google reserves ?c= on
+  // Apps Script addresses (it answers ?c= with its own "page not found")
+  if (e && e.parameter && e.parameter.cal) return feedGet_({ c: e.parameter.cal, s: e.parameter.s });
   var me = String(Session.getActiveUser().getEmail() || '').toLowerCase();
   if (!me) return text_('Sign in with a Google account to open the studio admin.');
   if (!allowed_(me)) return text_('The Google account ' + me + ' isn’t on the studio admin’s list. Ask the studio owner to add it under Admin access, then open this link again.');
