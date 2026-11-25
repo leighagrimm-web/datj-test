@@ -15,7 +15,7 @@ Get Britt on a **test site with a working admin** (real Publish, not browser-onl
   - `build.py` + `build_site3.sh`: build everything into `src/site3/` (pages, admin with injected defaults, `calendar.json`, `studio.ics`). Then copy `src/site3/*` to the repo root.
   - `logos/`, `dl_snippet.js`, `scripts/*.py` (content/text update helpers).
 - `admin-src/admin.html`: admin source (the root `admin.html` is built from it with defaults injected).
-- `apps-script/`: `signups.gs` (trial/audition sign-ups), `calendar-feed.gs` (dancer calendar feed + studio feed), `test-feeds.js` (automated feed checks; needs the private Company data file passed in).
+- `apps-script/`: `admin/` (the admin's Publish backend), `calendar-feed.gs` (dancer calendar feed + studio feed), `test-feeds.js` (automated feed checks; needs the private Company data file passed in).
 - `scripts/`: `studiopro.js` (Studio Pro schedule reader, browser + Node), `sync-classes.js`, `make-schedule-pdf.py`, `make-studio-ics.js`, `vendor/`.
 - `company-tools/`: Company bundle encryption and the Company Calendar workbook maker/reader.
 - `.github/workflows/sync-classes.yml`: nightly Studio Pro refresh (classes.json + schedule PDF). It commits to main, so always `git pull --rebase` before pushing.
@@ -39,7 +39,7 @@ Don't copy `site3/studio.ics`: the calendar bot (`.github/workflows/studio-calen
 ## To build next (test site first)
 1. ✅ **Test environment** (Nov 24, 2026): test Sheet + Apps Script + `leighagrimm-web/datj-test` on Pages. See `docs/test-environment.md`. Britt's Google account owns the production ones (client owns every account).
 2. **Admin Publish backend (Apps Script):** ✅ Google sign-in (owner only), server checks, versions on the History tab, `content.json` written to the repo, site reads it, locked files re-encrypted on Publish, season passwords changed in the admin (Nov 24–25, 2026). ✅ Photos (files in `images/up/`, Drive links, prototype photos copied off Wix into `images/wix/`), "Only on Company Central" dates moved from `content.json` into the Company bundle (`hiddenCal`, which the dancer feed reads), `studio.ics` rebuilt from `content.json` with the site's own address by `.github/workflows/studio-calendar.yml` (Nov 25, 2026).
-3. **Deploy `signups.gs`** and set `SIGNUP_URL` in the site.
+3. ~~Sign-ups backend~~ **Dropped (Leigha, Nov 25, 2026):** no sign-ups go through the site or the admin. Auditions and any other sign-ups are Google Form links set in the admin; the free trial is Studio Pro's own form. `signups.gs` was removed. The prototype's built-in trial and audition forms (`postSignup`, `ownTrial`, `FORMS` in HomeH) never show and can be deleted in a cleanup.
 4. **Deploy `calendar-feed.gs`** (see the setup steps at the top of the file), set `SUB.FEED_URL` in HomeH, then test on real devices (hold list item 5).
 5. **"Refresh from Studio Pro now"** for everyone: Apps Script triggers the GitHub workflow (token in Script Properties).
 6. **Year-over-year:** Start new season button + review screen, monthly email to Britt, health checks (`claude/datj-year-over-year.md`).
