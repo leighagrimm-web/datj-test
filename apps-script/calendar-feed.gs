@@ -97,7 +97,14 @@ var FEED = (function () {
       var sp = e.info && e.info.when && !e.end ? timeIn(e.info.when) : null;
       var desc = e.lock ? 'Company families: details are in Company Central (Company password).\n' + siteUrl + 'company-families.html'
         : (infoText(e) + '\n\nStudio calendar: ' + siteUrl + 'families.html#calendar').trim();
-      return { uid: 'cal-' + (e.id || ('c' + i)), date: e.start, end: e.end || '', t0: sp && sp[0], t1: sp && sp[1], title: e.title, where: e.where || '', desc: desc };
+      // Location that Maps can find: the full address when it's public; for a "Company families only" date (address
+      // private) the short place plus the city from the title, e.g. "Hemmens Cultural Center, Elgin"
+      var place = String(e.where || '').trim(), addr = e.lock ? '' : String(e.iWhere || '').trim();
+      var city = (/\(([^)]+)\)\s*$/.exec(e.title || '') || [])[1] || '';
+      var venue = place.split(',')[0].trim().toLowerCase();
+      var where = addr ? (venue && addr.toLowerCase().indexOf(venue) < 0 ? place + ', ' + addr : addr)
+        : (place && city && place.toLowerCase().indexOf(city.toLowerCase()) < 0 ? place + ', ' + city : place);
+      return { uid: 'cal-' + (e.id || ('c' + i)), date: e.start, end: e.end || '', t0: sp && sp[0], t1: sp && sp[1], title: e.title, where: where, desc: desc };
     });
   }
   // Pull a time out of text like "Wednesday, Nov 18 · 7:00 PM" or "2:30–4:30 PM"
