@@ -1,0 +1,199 @@
+<title>Class Level Options</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+  /* Layout: one column of three option panels; each shows the homepage class finder and a schedule row set, side by side on wide screens */
+  :root {
+    --bg: #F4F5F4; --paper: #FFFFFF; --ink: #111111; --mut: #5C6360; --line: #DDDDDD;
+    --teal: #00ADB5; --teal-soft: #E3F5F6; --teal-ink: #00787E;
+    --beg: #1E8E5A; --beg-soft: #E4F4EC; --mid: #B7791F; --mid-soft: #FBF1DF; --adv: #6B46C1; --adv-soft: #EFEAFB;
+    --sans: "Helvetica Neue", Helvetica, Arial, sans-serif; --serif: Georgia, "Times New Roman", serif;
+  }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+    --bg: #121414; --paper: #1B1E1E; --ink: #F2F3F2; --mut: #A7AFAB; --line: #333838;
+    --teal: #2EC4CC; --teal-soft: #13393B; --teal-ink: #6FDDE2;
+    --beg: #5CD49A; --beg-soft: #163326; --mid: #E6B75E; --mid-soft: #3A2E15; --adv: #B39CF0; --adv-soft: #2A2340; color-scheme: dark } }
+  :root[data-theme="dark"] {
+    --bg: #121414; --paper: #1B1E1E; --ink: #F2F3F2; --mut: #A7AFAB; --line: #333838;
+    --teal: #2EC4CC; --teal-soft: #13393B; --teal-ink: #6FDDE2;
+    --beg: #5CD49A; --beg-soft: #163326; --mid: #E6B75E; --mid-soft: #3A2E15; --adv: #B39CF0; --adv-soft: #2A2340; color-scheme: dark }
+  body { background: var(--bg); color: var(--ink); font-family: var(--sans); line-height: 1.45; }
+  .wrap { max-width: 1180px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 28px 60px; display: grid; gap: 34px; }
+  h1 { font-size: clamp(30px, 5vw, 46px); letter-spacing: -0.04em; line-height: 1; margin: 0; text-wrap: balance; }
+  h1 em, h2 em { font-family: var(--serif); font-weight: 400; color: var(--teal-ink); }
+  .lede { color: var(--mut); max-width: 68ch; margin: 10px 0 0; font-size: 16px; }
+  .lbl { font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; font-weight: 700; color: var(--mut); }
+  .controls { display: flex; flex-wrap: wrap; gap: 10px 22px; align-items: center; background: var(--paper); border: 1px solid var(--line); padding: 14px 16px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip { min-height: 38px; padding: 0 14px; border: 1px solid var(--ink); background: transparent; color: var(--ink); font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; }
+  .chip[aria-pressed="true"] { background: var(--ink); color: var(--paper); }
+  .chip:focus-visible, button:focus-visible { outline: 3px solid var(--teal); outline-offset: 2px; }
+  section.opt { background: var(--paper); border: 1px solid var(--line); border-top: 6px solid var(--teal); padding: 22px clamp(16px, 3vw, 28px) 26px; display: grid; gap: 16px; }
+  .opt h2 { font-size: 26px; letter-spacing: -0.03em; margin: 0; }
+  .opt .why { color: var(--mut); margin: 0; max-width: 72ch; }
+  .pair { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr); gap: 22px; }
+  @media (max-width: 860px) { .pair { grid-template-columns: 1fr; } }
+  .pane { min-width: 0; display: grid; gap: 10px; align-content: start; }
+  .frame { border: 1px solid var(--line); background: var(--bg); padding: 14px; }
+  /* homepage finder cards */
+  .cards { display: grid; gap: 10px; }
+  .card { background: var(--paper); border: 1px solid var(--line); padding: 12px 14px; display: grid; gap: 4px; }
+  .card .t { font-weight: 800; font-size: 16px; }
+  .card .s { font-size: 13px; color: var(--mut); }
+  .card.dim { opacity: 0.55; }
+  /* schedule rows */
+  .day { font-weight: 800; font-size: 17px; border-bottom: 1px solid var(--ink); padding-bottom: 6px; margin-top: 4px; }
+  .row { display: grid; grid-template-columns: 82px minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--line); }
+  .row .time { font-weight: 800; font-variant-numeric: tabular-nums; font-size: 14px; }
+  .row .what { min-width: 0; }
+  .row .what b { display: block; font-size: 15px; }
+  .row .what span { font-size: 12px; color: var(--mut); }
+  .row .side { font-size: 12px; color: var(--mut); text-align: right; }
+  @media (max-width: 520px) { .row { grid-template-columns: 64px minmax(0, 1fr); } .row .side { grid-column: 2; text-align: left; } }
+  /* level badges */
+  .badge { display: inline-flex; align-items: center; gap: 5px; font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; font-weight: 800; padding: 3px 7px; border-radius: 2px; white-space: nowrap; width: max-content; }
+  .b-beg { background: var(--beg-soft); color: var(--beg); } .b-mid { background: var(--mid-soft); color: var(--mid); } .b-adv { background: var(--adv-soft); color: var(--adv); }
+  .dots { display: inline-flex; gap: 3px; } .dots i { width: 7px; height: 7px; border-radius: 50%; border: 1.5px solid currentColor; } .dots i.on { background: currentColor; }
+  .start { font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; font-weight: 800; color: var(--paper); background: var(--teal-ink); padding: 3px 7px; width: max-content; }
+  .need { font-size: 12px; color: var(--mid); font-weight: 700; }
+  .q { background: var(--paper); border: 1px solid var(--line); padding: 12px 14px; display: grid; gap: 8px; }
+  .q b { font-size: 14px; }
+  /* ladder */
+  .ladder { display: grid; grid-template-columns: repeat(var(--n), minmax(0, 1fr)); gap: 4px; align-items: end; }
+  .step { background: var(--paper); border: 1px solid var(--line); padding: 8px 6px; font-size: 12px; font-weight: 800; text-align: center; min-width: 0; overflow-wrap: anywhere; }
+  .step.here { border: 2px solid var(--teal-ink); color: var(--teal-ink); }
+  .step.out { opacity: 0.4; }
+  .step small { display: block; font-weight: 400; color: var(--mut); font-size: 10.5px; }
+  .note { font-size: 12.5px; color: var(--mut); margin: 0; }
+  .verdict { font-size: 13px; margin: 0; padding: 10px 12px; background: var(--teal-soft); color: var(--ink); }
+  .verdict b { color: var(--teal-ink); }
+  .levels { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+  .levels th, .levels td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  .levels th { font-size: 10px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--mut); }
+  .tablewrap { overflow-x: auto; background: var(--paper); border: 1px solid var(--line); }
+  @media (prefers-reduced-motion: no-preference) { .card, .row { transition: opacity .2s; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="lbl">Dance &amp; All That Jazz · prototype</div>
+    <h1>Showing class <em>levels</em></h1>
+    <p class="lede">Age gets a dancer in the door, but experience decides the class: a 9-year-old who has never tapped belongs in Tap I, not Tap I/II. Three ways to show that, each on the homepage class finder and on the schedule. Pick an age to see how each one behaves.</p>
+  </header>
+
+  <div class="controls">
+    <span class="lbl">Dancer’s age</span>
+    <div class="chips" id="ages" role="group" aria-label="Dancer’s age"></div>
+    <span class="lbl">Style</span>
+    <div class="chips" id="styles" role="group" aria-label="Style"></div>
+  </div>
+
+  <div class="tablewrap">
+    <table class="levels">
+      <thead><tr><th>Class name has</th><th>Level</th><th>What families read</th><th>Classes</th></tr></thead>
+      <tbody id="levelTable"></tbody>
+    </table>
+  </div>
+
+  <section class="opt" aria-labelledby="oA">
+    <div class="lbl">Option A</div>
+    <h2 id="oA">A level badge <em>on every class</em></h2>
+    <p class="why">Every class gets a colored level and one line saying who it’s for. Nothing is hidden: families see the whole ladder and choose. Simplest to build and to keep up.</p>
+    <div class="pair">
+      <div class="pane"><div class="lbl">Homepage class finder</div><div class="frame"><div class="cards" id="aCards"></div></div></div>
+      <div class="pane"><div class="lbl">Schedule</div><div class="frame" id="aSched"></div></div>
+    </div>
+  </section>
+
+  <section class="opt" aria-labelledby="oB">
+    <div class="lbl">Option B</div>
+    <h2 id="oB">Ask about <em>experience</em> first</h2>
+    <p class="why">The finder asks one more question, “Has your dancer taken tap before?”, and only suggests classes that fit. The schedule marks the entry class “Start here” and says what comes before each of the others.</p>
+    <div class="pair">
+      <div class="pane"><div class="lbl">Homepage class finder</div><div class="frame" style="display: grid; gap: 10px;">
+        <div class="q"><b id="bQ">Has your dancer taken tap before?</b><div class="chips" id="bExp" role="group" aria-label="Experience"></div></div>
+        <div class="cards" id="bCards"></div></div></div>
+      <div class="pane"><div class="lbl">Schedule</div><div class="frame" id="bSched"></div></div>
+    </div>
+  </section>
+
+  <section class="opt" aria-labelledby="oC">
+    <div class="lbl">Option C</div>
+    <h2 id="oC">A level <em>ladder</em> per style</h2>
+    <p class="why">Each style shows its path from first class to advanced, with “Start here if new” on the right rung for the dancer’s age. Teaches families how the program builds, year to year. Takes the most space.</p>
+    <div class="pair">
+      <div class="pane"><div class="lbl">Homepage class finder</div><div class="frame" style="display: grid; gap: 10px;"><div class="ladder" id="cLadder"></div><p class="verdict" id="cVerdict"></p></div></div>
+      <div class="pane"><div class="lbl">Schedule</div><div class="frame" id="cSched"></div></div>
+    </div>
+  </section>
+
+  <p class="note">Class names, ages, days and times are the studio’s real classes from Studio Pro. Levels are read from the class name; the studio can change any of them in the admin.</p>
+</div>
+
+<script>
+  // Real classes (Studio Pro), two styles
+  const CLASSES = [
+    { s: 'Tap', n: 'Tiny Tap', lo: 3, hi: 5, d: 'Tue', t: '5:00' }, { s: 'Tap', n: 'Tap Basics', lo: 5, hi: 18, d: 'Mon', t: '6:00' },
+    { s: 'Tap', n: 'Tap I', lo: 6, hi: 18, d: 'Tue', t: '4:15' }, { s: 'Tap', n: 'Tap I/II', lo: 8, hi: 18, d: 'Mon', t: '5:15' },
+    { s: 'Tap', n: 'Tap II', lo: 10, hi: 18, d: 'Wed', t: '8:15' }, { s: 'Tap', n: 'Tap III', lo: 12, hi: 18, d: 'Mon', t: '6:45' },
+    { s: 'Tap', n: 'Tap IV', lo: 14, hi: 18, d: 'Wed', t: '6:30' },
+    { s: 'Jazz Lyrical', n: 'Jazz Lyrical I', lo: 8, hi: 18, d: 'Tue', t: '4:15' }, { s: 'Jazz Lyrical', n: 'Jazz Lyrical I/II', lo: 10, hi: 18, d: 'Mon', t: '4:15' },
+    { s: 'Jazz Lyrical', n: 'Jazz Lyrical II', lo: 12, hi: 18, d: 'Mon', t: '8:30' }, { s: 'Jazz Lyrical', n: 'Jazz Lyrical III', lo: 14, hi: 18, d: 'Mon', t: '8:15' }
+  ];
+  // Level from the class name (the studio can override any class in the admin)
+  const LEVELS = [
+    { k: 'beg', test: /tiny|basics|intro/i, name: 'Beginner', short: 'Beginner', who: 'No experience needed', rank: 0, cls: 'b-beg' },
+    { k: 'l1', test: /\bI\b(?!\/)/, name: 'Level 1', short: 'Level 1', who: 'New to this style, or up to a year', rank: 1, cls: 'b-beg' },
+    { k: 'l12', test: /\bI\/II\b/, name: 'Level 1–2', short: 'Level 1–2', who: 'About a year of this style', rank: 2, cls: 'b-mid' },
+    { k: 'l2', test: /\bII\b/, name: 'Level 2', short: 'Level 2', who: '1–2 years of this style', rank: 3, cls: 'b-mid' },
+    { k: 'adv', test: /\b(III|IV|V)\b|pointe/i, name: 'Advanced', short: 'Advanced', who: 'By teacher placement', rank: 4, cls: 'b-adv' }
+  ];
+  const levelOf = (c) => LEVELS.find(L => L.test.test(c.n)) || LEVELS[0];
+  const ROWS = [['Tiny, Basics, Intro to…', 0], ['I', 1], ['I/II', 2], ['II', 3], ['III, IV, V, Pointe', 4]];
+  let age = 9, style = 'Tap', exp = 'new';
+  const $ = (id) => document.getElementById(id);
+  const esc = (s) => String(s).replace(/[&<>"]/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
+  const badge = (L, dots) => '<span class="badge ' + L.cls + '">' + (dots ? '<span class="dots">' + [0, 1, 2, 3, 4].map(i => '<i class="' + (i <= L.rank ? 'on' : '') + '"></i>').join('') + '</span>' : '') + esc(L.short) + '</span>';
+  const fits = (c) => age >= c.lo && age <= c.hi;
+  const mine = () => CLASSES.filter(c => c.s === style).sort((a, b) => levelOf(a).rank - levelOf(b).rank);
+  const ages = c => c.hi >= 18 ? 'Ages ' + c.lo + '+' : 'Ages ' + c.lo + '–' + c.hi;
+  const pm = (t) => t + ' pm';
+  // the class a brand-new dancer of this age should start in: the lowest level that fits their age
+  const entry = () => mine().filter(fits)[0];
+  const prev = (c) => { const L = mine(); const i = L.indexOf(c); return i > 0 ? L.slice(0, i).reverse().find(x => levelOf(x).rank < levelOf(c).rank) : null; };
+
+  function chips(el, items, cur, set) {
+    el.innerHTML = items.map(([v, label]) => '<button type="button" class="chip" aria-pressed="' + (v === cur) + '" data-v="' + esc(v) + '">' + esc(label) + '</button>').join('');
+    el.onclick = (e) => { const b = e.target.closest('button'); if (!b) return; set(isNaN(+b.dataset.v) ? b.dataset.v : +b.dataset.v); draw(); };
+  }
+
+  function draw() {
+    chips($('ages'), [[5, 'Age 5'], [7, 'Age 7'], [9, 'Age 9'], [12, 'Age 12'], [15, 'Age 15']], age, v => age = v);
+    chips($('styles'), [['Tap', 'Tap'], ['Jazz Lyrical', 'Jazz Lyrical']], style, v => style = v);
+    const sname = style.toLowerCase();
+    $('levelTable').innerHTML = ROWS.map(([has, r]) => { const L = LEVELS[r]; return '<tr><td>' + esc(has) + '</td><td>' + badge(L) + '</td><td>' + esc(L.who) + '</td><td>' + esc(CLASSES.filter(c => levelOf(c).rank === r).map(c => c.n).join(', ') || '—') + '</td></tr>'; }).join('');
+    const list = mine(), ok = list.filter(fits), e = entry();
+
+    // Option A
+    $('aCards').innerHTML = ok.map(c => { const L = levelOf(c); return '<div class="card">' + badge(L, true) + '<span class="t">' + esc(c.n) + '</span><span class="s">' + esc(L.who) + ' · ' + esc(c.d + ' ' + pm(c.t)) + '</span></div>'; }).join('') || '<p class="note">No ' + esc(sname) + ' classes for age ' + age + '.</p>';
+    $('aSched').innerHTML = '<div class="day">' + esc(style) + ' · this session</div>' + list.map(c => { const L = levelOf(c); return '<div class="row"><span class="time">' + esc(c.d + ' ' + c.t) + '</span><span class="what"><b>' + esc(c.n) + '</b><span>' + esc(ages(c)) + ' · ' + esc(L.who) + '</span></span><span class="side">' + badge(L) + '</span></div>'; }).join('');
+
+    // Option B
+    chips($('bExp'), [['new', 'Never'], ['some', 'About a year'], ['more', '2+ years']], exp, v => exp = v);
+    $('bQ').textContent = 'Has your dancer taken ' + sname + ' before?';
+    const want = exp === 'new' ? [0, 1] : exp === 'some' ? [2, 3] : [3, 4];
+    const good = ok.filter(c => want.includes(levelOf(c).rank)), notYet = ok.filter(c => !want.includes(levelOf(c).rank) && levelOf(c).rank > Math.max(...want));
+    $('bCards').innerHTML = (good.length ? good.map(c => '<div class="card">' + (c === e && exp === 'new' ? '<span class="start">Start here</span>' : '') + '<span class="t">' + esc(c.n) + '</span><span class="s">' + esc(c.d + ' ' + pm(c.t)) + '</span></div>').join('') : '<p class="note">Nothing at that level for age ' + age + ' yet. Call the studio and we’ll help you place them.</p>')
+      + notYet.map(c => { const p = prev(c); return '<div class="card dim"><span class="t">' + esc(c.n) + '</span><span class="need">Later: after ' + esc(p ? p.n : 'a beginner class') + '</span></div>'; }).join('');
+    $('bSched').innerHTML = '<div class="day">' + esc(style) + ' · this session</div>' + list.map(c => { const p = prev(c), L = levelOf(c); return '<div class="row"><span class="time">' + esc(c.d + ' ' + c.t) + '</span><span class="what"><b>' + esc(c.n) + '</b><span>' + esc(ages(c)) + '</span></span><span class="side">' + (L.rank <= 1 && (!p || levelOf(p).rank < 1 || L.rank === 0) ? '<span class="start">Start here</span>' : '<span class="need">After ' + esc(p ? p.n : 'a beginner class') + '</span>') + '</span></div>'; }).join('');
+
+    // Option C
+    const ladder = list.filter(c => c.hi >= 5);
+    $('cLadder').style.setProperty('--n', ladder.length);
+    $('cLadder').innerHTML = ladder.map((c, i) => '<div class="step' + (c === e ? ' here' : '') + (fits(c) ? '' : ' out') + '" style="padding-top: ' + (8 + i * 7) + 'px;">' + esc(c.n.replace(style + ' ', '').replace('Tiny Tap', 'Tiny')) + '<small>' + esc(ages(c).replace('Ages ', '')) + '</small></div>').join('');
+    $('cVerdict').innerHTML = e ? 'New to ' + esc(sname) + ' at ' + age + '? <b>Start in ' + esc(e.n) + '</b> (' + esc(e.d + ' ' + pm(e.t)) + '). Each year, your teacher tells you when to move up a step.' : 'No ' + esc(sname) + ' class for age ' + age + ' yet.';
+    const groups = {}; list.forEach(c => { const L = levelOf(c); (groups[L.rank] = groups[L.rank] || { L, items: [] }).items.push(c); });
+    $('cSched').innerHTML = Object.values(groups).map(g => '<div class="day" style="display: flex; gap: 10px; align-items: center; justify-content: space-between;"><span>' + esc(g.L.name) + '</span>' + badge(g.L, true) + '</div>' + '<p class="note" style="margin: 4px 0 0;">' + esc(g.L.who) + '</p>'
+      + g.items.map(c => '<div class="row"><span class="time">' + esc(c.d + ' ' + c.t) + '</span><span class="what"><b>' + esc(c.n) + '</b><span>' + esc(ages(c)) + '</span></span><span class="side">' + (c === e ? '<span class="start">Start here</span>' : '') + '</span></div>').join('')).join('');
+  }
+  draw();
+</script>

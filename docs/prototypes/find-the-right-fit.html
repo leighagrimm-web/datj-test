@@ -1,0 +1,119 @@
+<title>Find the Right Fit</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+  /* Layout: the homepage's teal "Find the right fit" band, recreated; intro left, white finder card right; stacks on phones */
+  :root {
+    --teal: #00ADB5; --ink: #111111; --paper: #FFFFFF; --mut: #555555; --line: #E5E5E5; --page: #F4F5F4; --note: #5C6360;
+    --sans: "Helvetica Neue", Helvetica, Arial, sans-serif; --serif: Georgia, "Times New Roman", serif;
+  }
+  /* The site band is always teal with a white card, in both themes; only the page around it follows the theme */
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --page: #121414; --note: #A7AFAB; color-scheme: dark } }
+  :root[data-theme="dark"] { --page: #121414; --note: #A7AFAB; color-scheme: dark }
+  body { background: var(--page); color: var(--ink); font-family: var(--sans); }
+  .top { max-width: 1240px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 18px 10px; display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; justify-content: space-between; }
+  .top p { margin: 0; font-size: 13px; color: var(--note); max-width: 70ch; }
+  .sw { display: inline-flex; border: 1px solid var(--ink); background: var(--paper); }
+  .sw button { min-height: 40px; padding: 0 14px; border: 0; background: transparent; font: inherit; font-size: 12px; font-weight: 700; letter-spacing: 0.04em; cursor: pointer; color: var(--ink); }
+  .sw button[aria-pressed="true"] { background: var(--ink); color: var(--paper); }
+  .band { background: var(--teal); color: #000000; }
+  .band .in { max-width: 1240px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: clamp(48px, 9vw, 112px); display: grid; grid-template-columns: 0.9fr 1.1fr; gap: 8vw; align-items: center; }
+  @media (max-width: 900px) { .band .in { grid-template-columns: 1fr; gap: 36px; } }
+  .eyebrow { font-size: 10px; letter-spacing: 0.24em; text-transform: uppercase; margin-bottom: 22px; }
+  h1 { font-size: clamp(48px, 8vw, 84px); line-height: 0.9; letter-spacing: -0.07em; margin: 0; }
+  h1 em { font-family: var(--serif); font-weight: 400; }
+  .intro p { font-size: 14px; line-height: 1.7; max-width: 380px; }
+  .card { background: var(--paper); color: var(--ink); padding: clamp(18px, 3vw, 30px); min-width: 0; }
+  .lbl { display: block; font-size: 9px; letter-spacing: 0.17em; text-transform: uppercase; margin: 0 0 10px; color: #444444; }
+  .ages { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+  .ages button { min-height: 46px; border: 1px solid var(--ink); background: var(--paper); color: var(--ink); font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; }
+  .ages button[aria-pressed="true"] { background: var(--ink); color: var(--paper); }
+  button:focus-visible { outline: 3px solid #005F63; outline-offset: 2px; }
+  .tabs { display: flex; gap: 18px; margin: 18px 0 0; border-bottom: 1px solid var(--ink); }
+  .tabs button { border: 0; background: none; font: inherit; font-size: 10px; letter-spacing: 0.17em; text-transform: uppercase; font-weight: 700; color: #777777; padding: 0 0 8px; min-height: 30px; cursor: pointer; border-bottom: 3px solid transparent; margin-bottom: -2px; }
+  .tabs button[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--teal); }
+  .list { margin: 0; }
+  .row { display: flex; justify-content: space-between; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--line); font-size: 14px; }
+  .row b { font-weight: 700; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .row .lv { color: var(--mut); text-align: right; }
+  .list.today { margin-top: 16px; border-top: 1px solid var(--line); }
+  .hint { font-size: 12px; color: var(--mut); margin: 10px 0 0; }
+  .moreb { border: 0; background: none; font: inherit; font-size: 12px; font-weight: 700; color: var(--ink); padding: 10px 0 0; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+  .more { display: inline-block; margin-top: 16px; font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; font-weight: 700; color: var(--ink); border-bottom: 1px solid var(--teal); padding-bottom: 3px; text-decoration: none; }
+  .notes { max-width: 1240px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 18px 40px; font-size: 13px; color: var(--note); display: grid; gap: 6px; }
+  .notes p { margin: 0; max-width: 90ch; }
+</style>
+
+<div class="top">
+  <p><b>Mockup:</b> the homepage’s “Find the right fit”. <b>Proposed</b> keeps today’s short rows, but each row is a style and the class a new dancer of that age should start in. Pick an age and compare with <b>Today</b>.</p>
+  <div class="sw" role="group" aria-label="Version">
+    <button type="button" id="swNew" aria-pressed="true">Proposed</button>
+    <button type="button" id="swOld" aria-pressed="false">Today</button>
+  </div>
+</div>
+
+<section class="band" aria-labelledby="fitH">
+  <div class="in">
+    <div class="intro">
+      <div class="eyebrow">Your next step starts here</div>
+      <h1 id="fitH">Find the<br><em>right fit.</em></h1>
+      <p id="introP"></p>
+    </div>
+    <div class="card">
+      <span class="lbl">Dancer’s age</span>
+      <div class="ages" id="ages" role="group" aria-label="Dancer’s age"></div>
+      <div id="out"></div>
+      <a class="more" href="#fitH">Days, times &amp; teachers →</a>
+    </div>
+  </div>
+</section>
+
+<div class="notes">
+  <p><b>How a row is chosen:</b> classes are grouped by style from their names (Tap Basics, Tap I, Tap I/II… are all Tap). For a new dancer, the row is that style’s lowest level that fits the age: Basics, Intro to, Tiny or a level I class. “Already dancing?” lists the levels above it that fit the age. Classes with no level in the name, like Bollywood or Conditioning, count as open to everyone.</p>
+  <p>Real classes, ages and this session’s prices (9 weeks). The six styles shown first follow a set order (Ballet, Tap, Jazz Lyrical, Hip Hop…), which Brittany could change in the admin.</p>
+</div>
+
+<script>
+  const CLASSES = [{"n":"Ballet I/II","lo":10,"hi":18,"mins":55,"days":["Mon","Wed"]},{"n":"Jazz Hip Hop I","lo":6,"hi":10,"mins":40,"days":["Mon","Thu"]},{"n":"Jazz Lyrical I/II","lo":10,"hi":18,"mins":55,"days":["Mon"]},{"n":"Combo","lo":6,"hi":10,"mins":55,"days":["Mon","Thu","Fri"]},{"n":"Ballet II","lo":10,"hi":18,"mins":55,"days":["Mon"]},{"n":"Tap I/II","lo":8,"hi":18,"mins":40,"days":["Mon"]},{"n":"Tap Basics","lo":5,"hi":18,"mins":40,"days":["Mon"]},{"n":"Modern/Contemporary I/II","lo":10,"hi":18,"mins":55,"days":["Mon"]},{"n":"Tap III","lo":12,"hi":18,"mins":40,"days":["Mon"]},{"n":"Modern/Contemporary III","lo":14,"hi":18,"mins":55,"days":["Mon"]},{"n":"Contemporary","lo":11,"hi":18,"mins":55,"days":["Mon"]},{"n":"Musical Theater II","lo":12,"hi":18,"mins":55,"days":["Mon"]},{"n":"Jazz Lyrical III","lo":14,"hi":18,"mins":55,"days":["Mon"]},{"n":"Jazz Lyrical II","lo":12,"hi":18,"mins":55,"days":["Mon"]},{"n":"Leaps & Turns","lo":11,"hi":18,"mins":40,"days":["Mon"]},{"n":"Jazz Lyrical I","lo":8,"hi":18,"mins":55,"days":["Tue","Wed"]},{"n":"Tap I","lo":6,"hi":18,"mins":40,"days":["Tue"]},{"n":"Intro to Breaking","lo":6,"hi":18,"mins":55,"days":["Tue","Fri"]},{"n":"Tiny Tap","lo":3,"hi":5,"mins":40,"days":["Tue"]},{"n":"Ballet I","lo":8,"hi":18,"mins":55,"days":["Tue","Wed","Wed"]},{"n":"Breaking I & II (combined)","lo":9,"hi":18,"mins":55,"days":["Tue"]},{"n":"Disney Dancing","lo":3,"hi":5,"mins":40,"days":["Tue","Fri","Sat"]},{"n":"Hip Hop I","lo":7,"hi":18,"mins":40,"days":["Tue"]},{"n":"Hip Hop II","lo":10,"hi":18,"mins":55,"days":["Tue"]},{"n":"Adult Jazz/Contemporary","lo":19,"hi":99,"mins":55,"days":["Tue"]},{"n":"Adult Hip Hop","lo":19,"hi":99,"mins":55,"days":["Tue"]},{"n":"Jazz Hip Hop I/II","lo":9,"hi":18,"mins":55,"days":["Wed","Thu"]},{"n":"Modern/Contemporary I","lo":8,"hi":18,"mins":55,"days":["Wed"]},{"n":"Ballet III","lo":12,"hi":18,"mins":55,"days":["Wed"]},{"n":"Modern/Contemporary II","lo":12,"hi":18,"mins":55,"days":["Wed"]},{"n":"Tap IV","lo":14,"hi":18,"mins":40,"days":["Wed"]},{"n":"Ballet IV","lo":14,"hi":18,"mins":70,"days":["Wed"]},{"n":"Ballet V","lo":14,"hi":18,"mins":70,"days":["Wed"]},{"n":"Jazz II","lo":10,"hi":18,"mins":55,"days":["Wed"]},{"n":"Tap II","lo":10,"hi":18,"mins":40,"days":["Wed"]},{"n":"Adult Ballet","lo":19,"hi":99,"mins":55,"days":["Wed"]},{"n":"Acro II","lo":12,"hi":18,"mins":55,"days":["Thu"]},{"n":"Musical Theater I","lo":7,"hi":18,"mins":55,"days":["Thu"]},{"n":"Hip Hop Basics","lo":4,"hi":6,"mins":40,"days":["Thu","Sat"]},{"n":"Conditioning","lo":10,"hi":18,"mins":55,"days":["Thu"]},{"n":"Ballet Basics","lo":5,"hi":7,"mins":40,"days":["Thu","Fri","Sat"]},{"n":"Musical Theater I/II","lo":10,"hi":18,"mins":55,"days":["Thu"]},{"n":"Pointe I","lo":13,"hi":18,"mins":70,"days":["Thu"]},{"n":"Musical Theater III","lo":14,"hi":18,"mins":55,"days":["Thu"]},{"n":"Pre-Pointe","lo":12,"hi":18,"mins":55,"days":["Thu"]},{"n":"Pointe II","lo":14,"hi":18,"mins":70,"days":["Thu"]},{"n":"Acro Basics","lo":4,"hi":6,"mins":40,"days":["Fri"]},{"n":"Acro I","lo":6,"hi":18,"mins":55,"days":["Fri"]},{"n":"Breaking I","lo":8,"hi":18,"mins":55,"days":["Fri"]},{"n":"Acro I/II","lo":9,"hi":18,"mins":55,"days":["Fri"]},{"n":"Breaking II","lo":9,"hi":18,"mins":55,"days":["Fri"]},{"n":"Tiny Tots","lo":2,"hi":3,"mins":40,"days":["Sat"]},{"n":"Bollywood Ages 11+","lo":10,"hi":18,"mins":55,"days":["Sun"]},{"n":"Bollywood Ages 7+","lo":7,"hi":18,"mins":55,"days":["Sun"]},{"n":"Bollywood Ages 4+","lo":4,"hi":6,"mins":40,"days":["Sun"]},{"n":"Adult Bollywood Party","lo":19,"hi":99,"mins":90,"days":["Fri"]}];
+  const AGEB = [['tots', '18 mo–3', 1.5, 3], ['pre', '3–5', 3, 5], ['kids', '6–8', 6, 8], ['tween', '9–12', 9, 12], ['teen', 'Teen', 13, 18], ['adult', 'Adult', 19, 99]];
+  const RATE = (m) => m <= 45 ? 16.63 : m <= 60 ? 19 : m <= 75 ? 23.5 : 28.5, WEEKS = 9;
+  const price = (c) => '$' + Math.round(RATE(c.mins) * WEEKS) + ' / session';
+  const rank = (n) => /tiny|basics|intro|disney|tots|combo/i.test(n) ? 0 : /\b(III|IV|V)\b|pointe/i.test(n) ? 4 : /\bI\s*(\/|&)\s*II\b/.test(n) ? 2 : /\bII\b/.test(n) ? 3 : /\bI\b/.test(n) ? 1 : 0;
+  const styleOf = (n) => n.replace(/^Intro to /, '').replace(/ Basics$/, '').replace(/ Ages \d+\+$/, '').replace(/ (I\/II|I & II \(combined\)|IV|V|III|II|I)$/, '');
+  const levelTag = (n, s) => n === s ? n : n.replace(s + ' ', '').replace('Intro to ' + s, 'Intro').replace(/ \(combined\)/, '') || n;
+  const ORDER = ['Ballet', 'Tap', 'Jazz Lyrical', 'Hip Hop', 'Jazz Hip Hop', 'Acro', 'Musical Theater', 'Modern/Contemporary', 'Breaking', 'Combo', 'Tiny Tots', 'Disney Dancing', 'Tiny Tap', 'Bollywood', 'Contemporary', 'Leaps & Turns', 'Conditioning', 'Jazz', 'Pre-Pointe', 'Pointe'];
+  const pos = (s) => { const i = ORDER.indexOf(s); return i < 0 ? 99 : i; };
+  let age = 'tween', ver = 'new', tab = 'new', showAll = false;
+  const $ = (id) => document.getElementById(id);
+  const esc = (s) => String(s).replace(/[&<>"]/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
+
+  function draw() {
+    $('ages').innerHTML = AGEB.map(b => '<button type="button" data-a="' + b[0] + '" aria-pressed="' + (b[0] === age) + '">' + esc(b[1]) + '</button>').join('');
+    $('swNew').setAttribute('aria-pressed', ver === 'new'); $('swOld').setAttribute('aria-pressed', ver === 'old');
+    const b = AGEB.find(x => x[0] === age), fit = CLASSES.filter(c => c.lo <= b[3] && c.hi >= b[2]);
+    if (ver === 'old') {
+      $('introP').textContent = 'Tap your dancer’s age to see the classes that fit and what they cost, then book a free first class.';
+      $('out').innerHTML = '<div class="list today">' + fit.slice(0, 6).map(c => '<div class="row"><span>' + esc(c.n) + '</span><b>' + price(c) + '</b></div>').join('') + '</div>'
+        + '<p class="hint">Today: the first six classes that fit the age, in the order Studio Pro lists them (' + fit.length + ' fit).</p>';
+      return;
+    }
+    $('introP').innerHTML = 'Tap your dancer’s age to see where they’d start in each style and what it costs, then book a free first class.';
+    const styles = {}; fit.forEach(c => { (styles[styleOf(c.n)] = styles[styleOf(c.n)] || []).push(c); });
+    const S = Object.keys(styles).sort((x, y) => pos(x) - pos(y) || x.localeCompare(y)).map(s => {
+      const cs = styles[s].sort((x, y) => rank(x.n) - rank(y.n)); const start = cs[0];
+      return { s, start: rank(start.n) <= 1 ? start : null, up: cs.filter(c => c !== (rank(start.n) <= 1 ? start : null)) };
+    });
+    const tabs = '<div class="tabs" role="tablist"><button type="button" role="tab" data-t="new" aria-selected="' + (tab === 'new') + '">New to it</button><button type="button" role="tab" data-t="exp" aria-selected="' + (tab === 'exp') + '">Already dancing?</button></div>';
+    let rows;
+    if (tab === 'new') rows = S.filter(x => x.start).map(x => '<div class="row"><span>' + esc(x.start.n) + '</span><b>' + price(x.start) + '</b></div>');
+    else rows = S.filter(x => x.up.length).map(x => '<div class="row"><span>' + esc(x.s) + '</span><span class="lv">' + esc(x.up.map(c => levelTag(c.n, x.s)).join(' · ')) + '</span></div>');
+    const shown = showAll ? rows : rows.slice(0, 6);
+    $('out').innerHTML = tabs + '<div class="list">' + (shown.join('') || '<p class="hint">Nothing here for this age. Call the studio and we’ll help.</p>') + '</div>'
+      + (rows.length > 6 ? '<button type="button" class="moreb" data-more="1">' + (showAll ? 'Show fewer' : '+ ' + (rows.length - 6) + ' more style' + (rows.length - 6 === 1 ? '' : 's')) + '</button>' : '')
+      + '<p class="hint">' + (tab === 'new' ? 'The class to start in for each style. No experience needed.' : 'Levels open to this age. Your teacher can tell you which fits.') + '</p>';
+  }
+  $('ages').addEventListener('click', e => { const bt = e.target.closest('button'); if (bt) { age = bt.dataset.a; showAll = false; draw(); } });
+  $('out').addEventListener('click', e => { const bt = e.target.closest('button'); if (!bt) return; if (bt.dataset.t) { tab = bt.dataset.t; showAll = false; } if (bt.dataset.more) showAll = !showAll; draw(); });
+  $('swNew').addEventListener('click', () => { ver = 'new'; draw(); });
+  $('swOld').addEventListener('click', () => { ver = 'old'; draw(); });
+  draw();
+</script>
