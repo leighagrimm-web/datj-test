@@ -22,8 +22,14 @@ const FEED = box.module.exports;
 const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Chicago' });
 const data = JSON.parse(fs.readFileSync(cal, 'utf8'));
 const list = Array.isArray(data) ? data : (data.calendar || []);
-const ics = FEED.calendar('Dance & All That Jazz', FEED.studioEvents(list, site, today));
-// Keep the file unchanged when only the timestamp would change (no pointless commits)
+// The whole calendar, plus one file per filter on the website's calendar (Subscribe follows the filter you're on)
+const FILES = [['', null, 'Dance & All That Jazz'], ['-closures', 'Closure', 'D&ATJ · Closures'], ['-events', 'Event', 'D&ATJ · Events'],
+  ['-sessions', 'Session', 'D&ATJ · Session dates'], ['-recital', 'Recital', 'D&ATJ · Recital'], ['-company', 'Company', 'D&ATJ · Company']];
+// Keep a file unchanged when only the timestamp would change (no pointless commits)
 const strip = (s) => s.replace(/^DTSTAMP:.*$/mg, '');
-if (fs.existsSync(out) && strip(fs.readFileSync(out, 'utf8')) === strip(ics)) { console.log('studio.ics unchanged (' + site + ')'); process.exit(0); }
-fs.writeFileSync(out, ics); console.log('studio.ics:', (ics.match(/BEGIN:VEVENT/g) || []).length, 'dates, links to', site);
+FILES.forEach(([suffix, type, name]) => {
+  const file = out.replace(/\.ics$/, suffix + '.ics');
+  const ics = FEED.calendar(name, FEED.studioEvents(type ? list.filter((e) => (e.type || 'Event') === type) : list, site, today));
+  if (fs.existsSync(file) && strip(fs.readFileSync(file, 'utf8')) === strip(ics)) { console.log(path.basename(file) + ' unchanged'); return; }
+  fs.writeFileSync(file, ics); console.log(path.basename(file) + ':', (ics.match(/BEGIN:VEVENT/g) || []).length, 'dates, links to', site);
+});

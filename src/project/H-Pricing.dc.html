@@ -366,6 +366,10 @@ const SUB = (() => { const FEED_URL = '';
 // Directions: opens the phone's own maps app (Apple Maps on iPhone, iPad and Mac, Google Maps everywhere else)
 const MAPS = (q) => { let apple = false; try { apple = /iPhone|iPad|iPod|Macintosh/.test(navigator.userAgent || ''); } catch (e) {}
   return (apple ? 'https://maps.apple.com/?q=' : 'https://www.google.com/maps/search/?api=1&query=') + encodeURIComponent(q); };
+// The studio calendar's filters each have their own subscribe file (built with studio.ics by the calendar bot)
+const SUBF = { Closure: ['-closures', 'Closures', 'Only closures: breaks and holidays.'], Event: ['-events', 'Events', 'Only events: parties, fundraisers and performances.'],
+  Session: ['-sessions', 'Session dates', 'Only session dates: when sessions start and when autopay runs.'], Recital: ['-recital', 'Recital', 'Only Annual Performance dates.'],
+  Company: ['-company', 'Company', 'Only Company dates. Their details stay in Company Central.'] };
 const ICS = (() => {
   const TZ = 'BEGIN:VTIMEZONE\r\nTZID:America/Chicago\r\nBEGIN:STANDARD\r\nDTSTART:19701101T020000\r\nRRULE:FREQ=YEARLY;BYMONTH=11;BYDAY=1SU\r\nTZOFFSETFROM:-0500\r\nTZOFFSETTO:-0600\r\nTZNAME:CST\r\nEND:STANDARD\r\nBEGIN:DAYLIGHT\r\nDTSTART:19700308T020000\r\nRRULE:FREQ=YEARLY;BYMONTH=3;BYDAY=2SU\r\nTZOFFSETFROM:-0600\r\nTZOFFSETTO:-0500\r\nTZNAME:CDT\r\nEND:DAYLIGHT\r\nEND:VTIMEZONE';
   const pad = (n) => String(n).padStart(2, '0');
@@ -799,8 +803,9 @@ class Component extends DCLogic {
       // ---- event details panel (calendar) ----
       ...(() => { const s = this.state.sub; if (!s) return { subOpen: false, subBtns: [], subHow: [] };
         const isD = s === 'dancer', nm = String(this.state.coQ || '').trim().replace(/\s+/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-        const https = isD ? (this.state.subCode ? (this.state.feedUrl || SUB.FEED_URL) + '?c=' + this.state.subCode : '') : SUB.base() + 'studio.ics';
-        const calName = isD ? nm + ' · D&ATJ Company' : 'Dance & All That Jazz';
+        const sf = !isD && SUBF[this.state.calF];
+        const https = isD ? (this.state.subCode ? (this.state.feedUrl || SUB.FEED_URL) + '?c=' + this.state.subCode : '') : SUB.base() + 'studio' + (sf ? sf[0] : '') + '.ics';
+        const calName = isD ? nm + ' · D&ATJ Company' : sf ? 'D&ATJ · ' + sf[1] : 'Dance & All That Jazz';
         const L = https ? SUB.links(https, calName) : null;
         const B = L ? [
           { k: 'apple', label: DEV.ios ? 'Subscribe on this ' + (/iPad/.test(navigator.userAgent) ? 'iPad' : 'iPhone') : SUB.mac ? 'Subscribe on this Mac' : 'Apple Calendar', sub: 'iPhone, iPad and Mac Calendar', href: L.apple, target: '_self' },
@@ -815,15 +820,15 @@ class Component extends DCLogic {
           .concat(DEV.and ? ['On Android, subscriptions are added in Google Calendar on the web. Use the same Google account as your phone; it then appears in the Calendar app.'] : [])
           .concat(['To stop it, delete the calendar in your calendar app.']);
         return { subOpen: true, subClose: () => this.setState({ sub: null, subErr: '', subCopied: false }),
-          subTitle: isD ? (nm ? nm + '’s Company calendar' : 'Your dancer’s Company calendar') : 'Studio calendar',
-          subLead: isD ? 'Their rehearsals, their competition times (arrival, on stage, awards), Company-only dates and due dates. It keeps itself up to date.' : 'Every studio date: closures, events, session dates and the Annual Performance. It keeps itself up to date.',
+          subTitle: isD ? (nm ? nm + '’s Company calendar' : 'Your dancer’s Company calendar') : 'Studio calendar' + (sf ? ': ' + sf[1] : ''),
+          subLead: isD ? 'Their rehearsals, every Company date (competitions, convention, performances), their competition times once schedules are posted (arrival, on stage, awards), and due dates. It keeps itself up to date.' : (sf ? sf[2] + ' Pick Everything on the calendar to subscribe to every date.' : 'Every studio date: closures, events, session dates and the Annual Performance.') + ' It keeps itself up to date.',
           subReady: !!L, subBtns: btns, subUrl: https, subCopyLabel: this.state.subCopied ? 'Copied ✓︎' : 'Copy link',
           subCopy: () => { const done = () => this.setState({ subCopied: true }); try { navigator.clipboard.writeText(https).then(done, () => {}); } catch (e) {} },
           subSelect: (ev) => { try { ev.target.select(); } catch (e) {} },
           subBusy: !!this.state.subBusy, subErr: this.state.subErr || '', hasSubErr: !!this.state.subErr,
           subNoName: isD && !nm, subPending: isD && !!nm && !SUB.FEED_URL,
           subHow: how.map(x => ({ x: x })) }; })(),
-      subStudio: () => this.setState({ sub: 'studio', subErr: '', subCopied: false }),
+      subStudio: () => this.setState({ sub: 'studio', subErr: '', subCopied: false }), subStudioLabel: SUBF[this.state.calF] ? 'Subscribe to ' + SUBF[this.state.calF][1] : 'Subscribe',
       subDancer: () => this.subDancer(),
       evOpen: !!this.state.ev, evClose: () => this.setState({ ev: null, coErr: '' }),
       studioMap: MAPS('844 N Elmhurst Rd, Prospect Heights, IL 60070'),

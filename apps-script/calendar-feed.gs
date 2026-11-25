@@ -212,6 +212,15 @@ var FEED = (function () {
       out.push({ uid: 'cal-' + (e.id || 'h' + i), date: e.start, end: e.end || '', title: e.title, where: lk.where || e.where || '',
         desc: [lk.when, lk.summary, infoText(e)].filter(Boolean).join('\n') + '\nCompany Central: ' + cc });
     });
+    // Every other Company date (competitions, the convention, Soirée, performances…) as an all-day event, so one
+    // subscription has the whole Company season; competition times above are added once a schedule is posted.
+    // Dates for new families (New Member auditions and their sign-up deadline) are left out.
+    (o.cal || []).filter(function (e) { return e && e.type === 'Company' && !e.hidden && e.start && (e.end || e.start) >= from && !/new member/i.test(e.title || ''); }).forEach(function (e, i) {
+      var lk = (co.locked || {})[e.id] || {}, addr = e.iWhere || lk.where || '';
+      out.push({ uid: 'co-' + (e.id || 'c' + i), date: e.start, end: e.end || '', title: e.title,
+        where: addr && e.where && addr.indexOf(e.where) < 0 ? e.where + ', ' + addr : (addr || e.where || ''),
+        desc: [e.iWhen || lk.when, lk.summary || (e.iBody ? String(e.iBody).split('\n')[0] : '')].filter(Boolean).join('\n') + '\nCompany Central: ' + cc });
+    });
     (co.due || []).filter(function (d) { return d.date >= from; }).forEach(function (d) {
       var dup = (o.cal || []).concat(co.hiddenCal || []).some(function (e) { return e.start === d.date && String(e.title).toLowerCase() === String(d.t).toLowerCase(); });
       if (!dup) out.push({ uid: 'due-' + d.date + '-' + String(d.t).replace(/\W/g, '').slice(0, 24), date: d.date, title: 'Due: ' + d.t, where: '', desc: 'Company Central: ' + cc });
