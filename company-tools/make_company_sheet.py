@@ -97,13 +97,14 @@ def span(a, b):
 comps = []
 for e in sorted(content.get('calendar', []), key=lambda e: e['start']):
     m = re.match(r'^Competition:\s*(.+?)\s*\((.+)\)$', e.get('title', ''))
-    if m: comps.append([TABS.get(m.group(1), re.sub(r'\W', '', m.group(1))[:12]), m.group(1), e.get('where') or m.group(2), '', span(e['start'], e.get('end')), 'Preliminary'])
+    if m: comps.append([TABS.get(m.group(1), re.sub(r'\W', '', m.group(1))[:12]), m.group(1), 'Preliminary'])
 
 wb = openpyxl.Workbook(); ws0 = wb.active; ws0.title = 'How to use'
 for line in ['Company sheet: rehearsals and competitions in one place', '',
              'Rehearsals tab: one row per rehearsal (Date, Start, End, Studio A/B/C, Teacher, Dancers or group, Type only when the guess would be wrong).',
              'No rehearsals tab: days off. Teacher = All, or the teachers who are off.',
-             'Competitions tab: one row per competition. Tab name = the schedule tab below. Dates must include the year. Status: Preliminary or Final.',
+             'Competitions tab: one row per competition. Tab name = the schedule tab below. Competition = its name on the Studio calendar (VIP for “Competition: VIP (Elgin)”). Status: Preliminary or Final.',
+             'Dates, place and address are not kept here: they come from the competition’s date on the Studio calendar, so moving a competition is one edit there.',
              'Routines tab: once a season (song, dancers, costume). Groups tab: who is in each group dance.',
              'Schedule tabs (VIP, HOF, WCTE, BTS): paste each schedule when it comes in: Day (Fri 3/12), Entry #, Song, Arrival, Est. performance, Note, Stage.',
              '', 'Every dancer calendar subscribed from Company Central picks up changes here within about 10 minutes.',
@@ -129,9 +130,9 @@ for col, items, strict in (('E', ['A', 'B', 'C'], False), ('F', TEACHERS, False)
 ws2 = sheet('No rehearsals', 'Days with no rehearsals. Teacher = All, or the teachers who are off, separated by commas.', ['Date', 'Day', 'Teacher', 'Reason'], off, [13, 6, 40, 40])
 for i in range(3, 200):
     ws2.cell(i, 2).value = '=IF(A%d="","",TEXT(A%d,"ddd"))' % (i, i); ws2.cell(i, 1).number_format = 'mmm d, yyyy'
-sheet('Competitions', 'One row per competition. "Tab name" matches the schedule tab. Dates need the year. Change Status to Final when the final schedule is in.',
-      ['Tab name', 'Competition', 'Venue', 'Address', 'Dates', 'Status (Preliminary / Final)', 'Prop sign-up link', 'Rules link', 'Livestream link', 'Notes for everyone'],
-      comps, [10, 18, 24, 34, 18, 16, 22, 22, 22, 30])
+sheet('Competitions', 'One row per competition. "Tab name" matches the schedule tab; "Competition" matches its name on the Studio calendar, where its dates, place and address are kept. Change Status to Final when the final schedule is in.',
+      ['Tab name', 'Competition', 'Status (Preliminary / Final)', 'Prop sign-up link', 'Rules link', 'Livestream link', 'Notes for everyone', 'Lipstick', 'Hair video link', 'Makeup pictures link'],
+      comps, [10, 18, 16, 22, 22, 22, 30, 14, 22, 22])
 sheet('Routines', 'Fill in once a season. The costume checklist comes from this tab. Leave a cell empty instead of typing "--".',
       ['Song', 'Dancers', 'Choreographer', 'Tights?', 'Hair', 'Hairpiece', 'Shoes', 'Accessories', 'Props'], [], [24, 40, 14, 9, 22, 20, 14, 18, 14])
 sheet('Groups', 'One row per group dance: Group = exactly what the Dancers column says on Routines. Company teams fill in from the website’s team rosters.',

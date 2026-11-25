@@ -86,6 +86,14 @@ Central proves it's unlocked with it) and puts the feed's address in `content.js
 saved on the **Calendar links** tab; untick Active to turn one off. Needs the full Google Sheets permission (Apps Script's spreadsheet tool can't open another Sheet with the read-only one; the script only reads the Company sheet): after the
 first deploy with it, run any function in the editor once and allow it, or the admin stops working until you do.
 
+### Competition dates: one place
+
+A competition's dates, year, place and address are kept only on the **Studio calendar** (a date titled
+"Competition: VIP (Elgin)"). The Company sheet's Competitions tab holds what's specific to it (tab name, the name as on
+the calendar, Preliminary / Final, links, notes) and its schedule tab. The site, the admin and the dancer feed match a
+competition to its calendar date by `calId`, then by name, and take the dates from there; old Dates / Venue / Address
+columns in a sheet are only a fallback. The admin warns on Company Central when a competition has no calendar date.
+
 ### Studio calendar feed
 
 `studio.ics` (Subscribe to the studio calendar) is rebuilt by `.github/workflows/studio-calendar.yml` from the

@@ -152,7 +152,20 @@ var FEED = (function () {
         where: isShow(r) ? (r.room || '') : STUDIO + (r.room ? ' (' + r.room + ')' : ''),
         desc: [r.room, r.teacher].filter(Boolean).join(' · ') + (sp ? '' : (r.time ? '\n' + r.time : '')) + '\nCompany Central: ' + cc });
     });
-    (co.comps || []).filter(function (c) { return c.show !== false && (!c.hideAfter || c.hideAfter >= today) && (c.days || []).length; }).forEach(function (c) {
+    // A competition's dates, year, place and address come from its Studio calendar date (the one place they're kept);
+    // the Competitions tab's old columns are only a fallback
+    var M3 = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    var nmC = function (t) { return String(t || '').toLowerCase().replace(/&/g, 'and').replace(/[^a-z0-9]/g, ''); };
+    var calComp = function (c) {
+      var cal = o.cal || [], ev = cal.filter(function (e) { return e && e.id && e.id === (c.calId || c.id); })[0]
+        || cal.filter(function (e) { return e && /^Competition:/.test(e.title || '') && nmC(String(e.title).replace(/^Competition:\s*/, '').replace(/\s*\(.*\)$/, '')) === nmC(c.name); })[0];
+      if (!ev || !ev.start) return c;
+      var a = ev.start.split('-').map(Number), b = (ev.end || ev.start).split('-').map(Number);
+      var dates = M3[a[1] - 1] + ' ' + a[2] + (ev.end && ev.end !== ev.start ? (a[1] === b[1] ? '–' + b[2] : ' – ' + M3[b[1] - 1] + ' ' + b[2]) : '') + ', ' + b[0];
+      var lk = (co.locked || {})[ev.id] || {};
+      return Object.assign({}, c, { calId: ev.id, dates: dates, venue: ev.where || c.venue || '', address: ev.iWhere || lk.where || c.address || '', hideAfter: ev.end || ev.start });
+    };
+    (co.comps || []).map(calComp).filter(function (c) { return c.show !== false && (!c.hideAfter || c.hideAfter >= today) && (c.days || []).length; }).forEach(function (c) {
       var yr = (/(20\d\d)/.exec(c.dates || '') || [])[1]; if (!yr) return;
       var prelim = !/final/i.test(c.status || ''), tag = prelim ? ' (preliminary)' : '';
       var G = {}; teams.forEach(function (t) { var n = (t.dancers || []).map(function (d) { return d.t; }).filter(Boolean); if (n.length) G[(t.t + ' company').toLowerCase()] = n; });
