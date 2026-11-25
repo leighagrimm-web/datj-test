@@ -261,7 +261,8 @@ function publish_(email, req) {
     var at = new Date();
     // The admin sends this backend's own public address; it becomes the dancer calendar address on the site
     var feed = /^https:\/\/script\.google\.com\/macros\/s\/[\w-]{20,}\/exec$/.test(String(req.feedUrl || '')) ? req.feedUrl : '';
-    var pub = publicPart_(full, version, at, feed);
+    var cal = /^https:\/\/[a-z0-9.-]+\.[a-z]{2,}\/?$/i.test(String(req.calUrl || '')) ? String(req.calUrl).replace(/\/$/, '') + '/' : '';
+    var pub = publicPart_(full, version, at, feed, cal);
     var pubText = JSON.stringify(pub);
     if (pubText.length > MAX_PUBLIC_BYTES) return { ok: false, error: 'The website part is too big to publish (' + Math.round(pubText.length / 1024) + ' KB).' };
 
@@ -340,9 +341,10 @@ function changedSections_(a, b) {
 // ---------------------------------------------------------------- public and private parts
 
 // What goes into content.json. Never trusts the page to have left the private parts out.
-function publicPart_(full, version, at, feed) {
+function publicPart_(full, version, at, feed, cal) {
   var pub = { _published: { version: version, at: at.toISOString() } };
-  if (feed) pub._published.feed = feed;   // where Company Central asks for dancer calendar links
+  if (feed) pub._published.feed = feed;
+  if (cal) pub._published.cal = cal;     // the dancer calendar relay that subscription links use (Apple Calendar can't use Apps Script directly)   // where Company Central asks for dancer calendar links
   PUBLIC_KEYS.forEach(function (k) { if (k in full) pub[k] = full[k]; });
   // "Only on Company Central" dates leave content.json entirely; they're in the Company bundle (hiddenCal)
   if (pub.calendar) pub.calendar = pub.calendar.filter(function (e) { return !(e && e.hidden); }).map(function (e) {

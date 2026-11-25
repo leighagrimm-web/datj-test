@@ -275,7 +275,9 @@
     '/datj-test/': {
       name: 'test',
       api: 'https://script.google.com/macros/s/AKfycbye-nEG-VYkahNzDHmkZNe2BurZ6n4g-m6o9R_PpgLNUNUvRujgoF97Hry-nODKegg35w/exec',
-      signin: 'https://script.google.com/macros/s/AKfycbzt6PGMN3ihrtt0C3xEMtfsT4zj4CrpNZyvXDG5fma049ZCJb-W4oHP903gn27RAuiBZA/exec'
+      signin: 'https://script.google.com/macros/s/AKfycbzt6PGMN3ihrtt0C3xEMtfsT4zj4CrpNZyvXDG5fma049ZCJb-W4oHP903gn27RAuiBZA/exec',
+      // Dancer calendar relay (tools/calendar-relay/worker.js on Cloudflare): Apple Calendar can't subscribe to Apps Script directly
+      cal: ''
     }
   };
   const BASE = location.pathname.replace(/[^/]*$/, '');
@@ -539,7 +541,7 @@
     try { sealed = await sealChanged(); } catch (e) { busy(false); return notice('<b>Not published.</b> Couldn’t get the locked details ready: ' + esc(e && e.message || e) + ' Check the connection and try again.'); }
     if (sealed.ask.length) { busy(false); return askPw(sealed.ask, force, sealed.wrong); }
     const base = read(DRAFT_BASE);
-    const res = await api('publish', { content: draft, baseVersion: base == null ? serverVer : base, force: !!force, enc: sealed.enc, newLocks: sealed.newLocks, feedUrl: ENV.api });
+    const res = await api('publish', { content: draft, baseVersion: base == null ? serverVer : base, force: !!force, enc: sealed.enc, newLocks: sealed.newLocks, feedUrl: ENV.api, calUrl: ENV.cal || '' });
     busy(false);
     if (res.code === 'needpw') {
       // The server sees a locked file this page thought was unchanged: lock it again and try once more, asking only if that fails
