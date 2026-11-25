@@ -130,6 +130,7 @@ function doPost(e) {
     if (req.action === 'locks') return json_({ ok: true, locks: locks_() });
     // The Company sheet's rehearsals, days off and groups, for Publish to put in the locked Company file (Feed.gs)
     if (req.action === 'sheettabs') return json_(sheetTabs_(req));
+    if (req.action === 'saveclasses') return json_(saveClasses_(req));
     if (req.action === 'companysheet') { var cs = readCompanySheet_({ sheet: String(req.sheet || ''), compSheet: String(req.compSheet || '') });
       return json_({ ok: cs.ok, rehearsals: cs.rehearsals, off: cs.off, groups: cs.groups, error: cs.error }); }
     return json_({ ok: false, error: 'Unknown action.' });
@@ -477,6 +478,47 @@ function walk_(v, path, depth, errors) {
 function label_(path) { var top = String(path).split(/[.[]/)[0]; return (SECTION_NAMES[top] || top) + (path !== top ? ' (' + path + ')' : ''); }
 
 // ---------------------------------------------------------------- GitHub
+
+// ---------------------------------------------------------------- Refresh from Studio Pro now
+
+// The admin fetches the class schedule from Studio Pro in the browser (scripts/studiopro.js, same as the nightly bot)
+// and sends it here; this checks it and saves classes.json in the site, so the website updates in about a minute.
+var CLASS_FIELDS = { key: 'string', season: 'string', name: 'string', note: 'string', day: 'string', time: 'string', start: 'number',
+  end: 'number', mins: 'number', studio: 'string', location: 'string', lo: 'number', hi: 'number' };
+function saveClasses_(req) {
+  var list = req.classes;
+  if (!Array.isArray(list) || list.length > 500) return { ok: false, error: 'That class list didn’t come through right. Try Refresh again.' };
+  var clean = [], bad = 0;
+  list.forEach(function (c) {
+    if (!c || typeof c !== 'object' || typeof c.key !== 'string' || typeof c.name !== 'string') { bad++; return; }
+    var o = {};
+    Object.keys(CLASS_FIELDS).forEach(function (k) {
+      var v = c[k], t = CLASS_FIELDS[k];
+      if (t === 'string') o[k] = String(v == null ? '' : v).slice(0, 200);
+      else o[k] = typeof v === 'number' && isFinite(v) ? v : (v == null ? null : Number(v) || 0);
+    });
+    clean.push(o);
+  });
+  if (bad) return { ok: false, error: bad + ' classes came back in an unexpected shape. Nothing was changed.' };
+  var cur = null;
+  try { cur = ghGetJson_('classes.json'); } catch (err) { console.error('classes.json', err); }
+  var had = cur && Array.isArray(cur.classes) ? cur.classes.length : 0;
+  // Same safety net as the nightly bot: a near-empty answer means Studio Pro hiccuped, not that every class was cancelled
+  if (clean.length < Math.max(5, Math.floor(had / 2))) return { ok: false, error: 'Only ' + clean.length + ' classes came back from Studio Pro (the site has ' + had + '). Kept the current schedule; try again in a few minutes.' };
+  if (cur && JSON.stringify(cur.classes) === JSON.stringify(clean)) return { ok: true, unchanged: true, count: clean.length };
+  var text = JSON.stringify({ updated: new Date().toISOString(), source: 'Studio Pro live schedule', classes: clean }, null, 1) + '\n';
+  var r = ghCommit_({ 'classes.json': text }, 'Class schedule refreshed from Studio Pro (admin)');
+  return { ok: true, count: clean.length, url: r.url };
+}
+// A JSON file from the site's repo (the Contents API, up to 1 MB)
+function ghGetJson_(path) {
+  var c = gh_();
+  var r = UrlFetchApp.fetch('https://api.github.com/repos/' + c.repo + '/contents/' + path + '?ref=' + encodeURIComponent(c.branch), { headers: c.headers, muteHttpExceptions: true });
+  if (r.getResponseCode() === 404) return null;
+  if (r.getResponseCode() !== 200) throw new Error('GitHub said ' + r.getResponseCode() + ' reading ' + path);
+  var j = JSON.parse(r.getContentText());
+  return JSON.parse(Utilities.newBlob(Utilities.base64Decode(String(j.content).replace(/\s/g, ''))).getDataAsString('UTF-8'));
+}
 
 function gh_() {
   var token = prop_('GITHUB_TOKEN'), repo = prop_('GITHUB_REPO');

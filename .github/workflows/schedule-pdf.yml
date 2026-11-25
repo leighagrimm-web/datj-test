@@ -1,0 +1,33 @@
+name: Rebuild the printable class schedule
+# When the admin's "Refresh from Studio Pro now" saves a new classes.json, rebuild DATJ_Class_Schedule.pdf to match.
+# (The nightly sync-classes workflow rebuilds it itself when it finds changes.)
+on:
+  push:
+    branches: [main]
+    paths: ['classes.json']
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: schedule-pdf
+  cancel-in-progress: true
+jobs:
+  pdf:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.12' }
+      - name: Build the PDF
+        run: |
+          pip install playwright
+          python -m playwright install --with-deps chromium
+          python scripts/make-schedule-pdf.py
+      - name: Save it
+        run: |
+          if git diff --quiet DATJ_Class_Schedule.pdf; then echo "PDF unchanged"; exit 0; fi
+          git config user.name "schedule-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add DATJ_Class_Schedule.pdf
+          git commit -m "Printable class schedule rebuilt"
+          for i in 1 2 3; do git pull --rebase && git push && exit 0; sleep 5; done; exit 1

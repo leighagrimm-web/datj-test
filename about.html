@@ -768,9 +768,35 @@ class Component extends DCLogic {
       ]; const ed = HOME.programs && HOME.programs.length ? HOME.programs : P0;
         return ed.map((x, i) => { const p = P0[i] || { num: String(i + 1).padStart(2, '0'), photo: 'Photo', href: 'classes.html', more: '' }; const e = Object.assign({}, x || {}); Object.keys(e).forEach(k => { if (e[k] === '' || e[k] == null) delete e[k]; });
           const q = Object.assign({}, p, e); q.href = e.link ? linkTo(e.link) : p.href; q.more = lines(q.more).indexOf('|') >= 0 || !/\|/.test(q.more || '') ? lines(q.more) : q.more; q.photoImg = isPic(q.photo); q.photoPh = !q.photoImg; return q; }); })(),
-      ageBtns: [['tots','18 mo–3'],['pre','3–5'],['kids','6–8'],['tween','9–12'],['teen','Teen'],['adult','Adult']].map(x => ({ label: x[1], on: x[0] === a ? 'true' : 'false', pick: () => this.setState({ age: x[0] }),
+      ageBtns: [['tots','18 mo–3'],['pre','3–5'],['kids','6–8'],['tween','9–12'],['teen','Teen'],['adult','Adult']].map(x => ({ label: x[1], on: x[0] === a ? 'true' : 'false', pick: () => this.setState({ age: x[0], fitAll: false }),
         style: 'min-height: 48px; border: 1px solid ' + (x[0] === a ? '#111111' : '#CCCCCC') + '; background: ' + (x[0] === a ? '#111111' : '#FFFFFF') + '; color: ' + (x[0] === a ? '#FFFFFF' : '#111111') + '; font-family: inherit; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; font-weight: 700; cursor: pointer;' })),
-      fit: (() => { const b = AGEB.find(x => x[0] === a); const seen = {}; const out = C.filter(c => b && c.lo <= b[3] && c.hi >= b[2] && !(c.lo === 0 && c.hi === 99)).map(c => ({ name: c.name.replace(/ (Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)$/, ''), price: /^\$/.test(c.priceLabel) ? c.priceLabel + ' / session' : c.priceLabel })).filter(c => !seen[c.name] && (seen[c.name] = 1)); return out.length ? out.slice(0, 6) : byAge[a].map(c => ({ name: c[0], price: c[1] })); })(),
+      // Find the right fit: one row per style showing the class a new dancer starts in (e.g. anyone new to tap starts in Tap Basics),
+      // plus an "Already dancing?" tab listing the higher levels open to that age. Up to 6 rows, then "+ N more styles".
+      ...(() => {
+        const bnd = AGEB.find(x => x[0] === a), tab = this.state.fitTab === 'exp' ? 'exp' : 'new', all = !!this.state.fitAll;
+        const nm = (c) => c.name.replace(/ (Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)$/, '');
+        const rank = (n) => /tiny|basics|intro|disney|tots|combo/i.test(n) ? 0 : /\b(III|IV|V)\b|pointe/i.test(n) ? 4 : /\bI\s*(\/|&)\s*II\b/.test(n) ? 2 : /\bII\b/.test(n) ? 3 : /\bI\b/.test(n) ? 1 : 0;
+        const styleOf = (n) => n.replace(/^Intro to /, '').replace(/ Basics$/, '').replace(/ Ages \d+\+$/, '').replace(/ (I\/II|I & II \(combined\)|IV|V|III|II|I)$/, '');
+        const levelTag = (n, st) => n === st ? n : (n.replace(st + ' ', '').replace('Intro to ' + st, 'Intro').replace(/ \(combined\)/, '') || n);
+        const ORDER = ['Ballet', 'Tap', 'Jazz Lyrical', 'Hip Hop', 'Jazz Hip Hop', 'Acro', 'Musical Theater', 'Modern/Contemporary', 'Breaking', 'Combo', 'Tiny Tots', 'Disney Dancing', 'Tiny Tap', 'Bollywood', 'Contemporary', 'Leaps & Turns', 'Conditioning', 'Jazz', 'Pre-Pointe', 'Pointe'];
+        const pos = (st) => { const i = ORDER.indexOf(st); return i < 0 ? 99 : i; };
+        const priceOf = (c) => /^\$/.test(c.priceLabel) ? c.priceLabel + ' / session' : c.priceLabel;
+        const seen = {}, fitC = C.filter(c => bnd && c.lo <= bnd[3] && c.hi >= bnd[2] && !(c.lo === 0 && c.hi === 99)).filter(c => !seen[nm(c)] && (seen[nm(c)] = 1));
+        const by = {}; fitC.forEach(c => { const st = styleOf(nm(c)); (by[st] = by[st] || []).push(c); });
+        const S = Object.keys(by).sort((x, y) => pos(x) - pos(y) || x.localeCompare(y)).map(st => {
+          const cs = by[st].sort((x, y) => rank(nm(x)) - rank(nm(y))), start = rank(nm(cs[0])) <= 1 ? cs[0] : null;
+          return { st, start, up: cs.filter(c => c !== start) }; });
+        let rows = tab === 'new' ? S.filter(x => x.start).map(x => ({ name: nm(x.start), price: priceOf(x.start) }))
+          : S.filter(x => x.up.length).map(x => ({ name: x.st, price: x.up.map(c => levelTag(nm(c), x.st)).join(' · ') }));
+        if (!fitC.length && byAge[a]) rows = byAge[a].map(c => ({ name: c[0], price: c[1] }));
+        const more = rows.length - 6;
+        const tabSty = (on) => 'flex: 1; min-height: 44px; border: 0; border-bottom: 2px solid ' + (on ? '#111111' : 'transparent') + '; background: transparent; color: ' + (on ? '#111111' : '#666666') + '; font-family: inherit; font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; font-weight: 700; cursor: pointer;';
+        return {
+          fit: all ? rows : rows.slice(0, 6), fitEmpty: !rows.length, fitExp: tab === 'exp',
+          fitTabs: [['new', 'New to it'], ['exp', 'Already dancing?']].map(t => ({ label: t[1], on: t[0] === tab ? 'true' : 'false', style: tabSty(t[0] === tab), pick: () => this.setState({ fitTab: t[0], fitAll: false }) })),
+          fitHasMore: more > 0, fitMoreLabel: all ? 'Show fewer' : '+ ' + more + ' more style' + (more === 1 ? '' : 's'), fitMore: () => this.setState({ fitAll: !all }),
+          fitHint: tab === 'new' ? 'The class to start in for each style. No experience needed.' : 'Levels open to this age. Your teacher can tell you which fits.'
+        }; })(),
       trial: this.state.trial && (!TRIAL_URL || !!this.state.ownForm), spOpen: !!this.state.trial && !!TRIAL_URL && !this.state.ownForm, trialUrl: TRIAL_URL, sent: this.state.sent, notSent: !this.state.sent, name: this.state.name || 'friend',
       openTrial: () => this.setState({ trial: true, ownForm: false, sent: false, tTried: false }),
       tryClass: C.reduce((o, c) => { o[c.id] = () => this.setState({ trial: true, ownForm: !!this.state.ownTrial, sent: false, tTried: false, tCls: c.id, tStyle: '', tAge: (AGEB.find(b => c.lo <= b[3] && c.hi >= b[2]) || AGEB[0])[0] }); return o; }, {}),
