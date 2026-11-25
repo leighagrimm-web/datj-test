@@ -65,8 +65,10 @@ function deploy(which) {
 }
 
 try {
-  deploy('public');
+  // signin first: the code left in the editor (what Run uses for setup and the permission prompt) is the last push,
+  // so it has to be public's, with the full permissions
   deploy('signin');
+  deploy('public');
   console.log('\nDone: ' + env.toUpperCase() + ' signin and public are on the new version.');
   Object.keys(t.deployments).forEach((k) => console.log('  ' + k + ': https://script.google.com/macros/s/' + t.deployments[k] + '/exec'));
 } finally {
