@@ -372,8 +372,11 @@
   let draft = pick(JSON.parse(JSON.stringify(read(DRAFT) || live)));
   const dirty = () => JSON.stringify(draft) !== JSON.stringify(live) || !!(pwNext.company || pwNext.recital);
   // The draft remembers which published version it started from, so Publish can tell if another device published since.
-  const saveDraft = () => { write(DRAFT, draft); if (ENV && read(DRAFT_BASE) == null) write(DRAFT_BASE, serverVer); status(); };
-  const clearDraft = () => { try { localStorage.removeItem(DRAFT); localStorage.removeItem(DRAFT_BASE); } catch (e) {} };
+  // The draft remembers the version it started from, and a copy of it (ORIG), so if another device publishes in the
+  // meantime the admin can tell which sections were changed here and which there, and keep both
+  const ORIG = 'datj-admin-draft-orig' + NS;
+  const saveDraft = () => { write(DRAFT, draft); if (ENV && read(DRAFT_BASE) == null) { write(DRAFT_BASE, serverVer); write(ORIG, live); } status(); };
+  const clearDraft = () => { try { localStorage.removeItem(DRAFT); localStorage.removeItem(DRAFT_BASE); localStorage.removeItem(ORIG); } catch (e) {} };
 
   // ---------- helpers ----------
   const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -555,11 +558,45 @@
       return;
     }
     if (res.code === 'signin') return signinAgain(res.error);
-    if (res.code === 'stale') return notice('<b>' + esc(res.error) + '</b> Publishing yours replaces it' + (res.by ? ' (published by ' + esc(res.by) + (res.publishedAt ? ', ' + esc(fmtStamp(res.publishedAt)) : '') + ')' : '') + '. Or discard yours to see it.'
-      + '<div class="row"><button type="button" class="btn primary" data-pubforce="1">Publish mine anyway</button><button type="button" class="btn" data-pubreload="1">Discard mine and load it</button></div>');
+    if (res.code === 'stale') return offerMerge(res);
     if (res.code === 'site' && res.version) { useServer(res.content, res.version, res.publishedAt); draft = clone(live); clearDraft(); render(); }
     notice('<b>Not published.</b> ' + esc(res.error) + (res.errors ? '<ul>' + res.errors.map(x => '<li>' + esc(x) + '</li>').join('') + '</ul>' : ''));
   }
+  // ---------- another device published since this draft started: keep both, section by section ----------
+  const SECNAME = { recital: 'Annual Performance switch', season: 'Between seasons page', calSheet: 'Calendar sheet link', banner: 'Top banner',
+    home: 'Homepage', nav: 'Menu', prices: 'Sessions & prices', photos: 'Photos', featured: 'Featured events', calendar: 'Studio calendar',
+    coEdit: 'Company Central', policies: 'Policies', rc: 'Annual Performance', lists: 'Page cards', texts: 'Page text', teachers: 'Teachers', staff: 'Instructors & staff' };
+  let merge = null;
+  async function offerMerge(res) {
+    const L = await api('load');
+    if (!L.ok) return notice('<b>' + esc(res.error) + '</b> Couldn’t get the newest version to combine with yours: ' + esc(L.error || '') + ' Reload the admin and try again; your changes are saved on this device.');
+    const latest = pick(clone(Object.assign({}, DEFAULTS, L.content || {}))), o = read(ORIG), orig = o ? pick(o) : null;
+    const J = (x) => JSON.stringify(x === undefined ? null : x), keys = Object.keys(Object.assign({}, latest, draft)).filter(k => k !== 'staffV');
+    const mine = [], theirs = [], both = [];
+    keys.forEach(k => { const d = J(draft[k]), l = J(latest[k]); if (d === l) return; const b = orig ? J(orig[k]) : null;
+      if (orig && b === l) mine.push(k); else if (orig && b === d) theirs.push(k); else both.push(k); });
+    merge = { latest: L, mine: mine, theirs: theirs, both: both, keep: Object.fromEntries(both.map(k => [k, 'mine'])) };
+    mergeNotice();
+  }
+  function mergeNotice() {
+    const M = merge, L = M.latest, nm = (k) => SECNAME[k] || k, list = (a) => a.map(nm).join(', ');
+    notice('<b>Version ' + L.version + ' was published ' + (L.by ? 'by ' + esc(L.by) + ' ' : '') + 'from another device' + (L.publishedAt ? ' (' + esc(fmtStamp(L.publishedAt)) + ')' : '') + ' after you started.</b>'
+      + ' Publishing adds your changes to it, so nothing from either device is lost.'
+      + '<ul style="margin: 8px 0; padding-left: 20px;">'
+      + (M.mine.length ? '<li><b>Your changes:</b> ' + esc(list(M.mine)) + '</li>' : '')
+      + (M.theirs.length ? '<li><b>Kept from the other device:</b> ' + esc(list(M.theirs)) + '</li>' : '')
+      + M.both.map(k => '<li><b>Changed on both:</b> ' + esc(nm(k)) + ' <span style="white-space: nowrap;"><button type="button" class="chip" data-mkeep="' + k + ':mine" aria-pressed="' + (M.keep[k] === 'mine') + '">Keep mine</button> '
+        + '<button type="button" class="chip" data-mkeep="' + k + ':theirs" aria-pressed="' + (M.keep[k] === 'theirs') + '">Keep theirs</button></span></li>').join('')
+      + '</ul><div class="row"><button type="button" class="btn primary" data-mergego="1">Publish with both</button><button type="button" class="btn" data-pubreload="1">Discard mine and load theirs</button></div>');
+  }
+  function mergeGo() {
+    const M = merge, L = M.latest; if (!M) return;
+    const mineK = M.mine.concat(M.both.filter(k => M.keep[k] === 'mine')), d = draft;
+    useServer(L.content, L.version, L.publishedAt);
+    draft = clone(live); mineK.forEach(k => { draft[k] = clone(d[k]); });
+    write(DRAFT, draft); write(DRAFT_BASE, serverVer); write(ORIG, live); merge = null; render(); publish(false);
+  }
+
   function discard() { draft = clone(live); clearDraft(); setPwNext('company', ''); setPwNext('recital', ''); render(); toast('Changes discarded.'); }
 
   // ---------- locked files: Company Central (company.enc.json) and Annual Performance details (recital.enc.json) ----------
@@ -1588,6 +1625,8 @@
     if (listClick(d)) return;
     if (t.id === 'publishTop' || t.id === 'publishBar') return publish();
     if (d.pubforce) return publish(true);
+    if (d.mergego) return mergeGo();
+    if (d.mkeep) { const [k, v] = d.mkeep.split(':'); if (merge) { merge.keep[k] = v; mergeNotice(); } return; }
     if (d.pubpw) return publishWithPw();
     if (d.accadd) return accAdd();
     if (d.accx !== undefined) { const e = helpers[+d.accx]; return saveAcc(helpers.filter((x, i) => i !== +d.accx), e + ' can’t sign in any more.'); }
