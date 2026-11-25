@@ -1052,10 +1052,16 @@ class Component extends DCLogic {
           coTabNext: (this.state.coTab || 'next') === 'next', coTabComps: this.state.coTab === 'comps', coTabSeason: this.state.coTab === 'season',
           coBigEmpty: !evs.some(e => /^Competition:|Convention/.test(e.title) && (e.end || e.start) >= todayISO),
           coKinds: K.map(x => ({ label: x[1], style: CHIP(k === x[0]), pressed: k === x[0] ? 'true' : 'false', pick: () => this.setState({ coK: x[0] }) })),
-          coQ: this.state.coQ, setCoQ: (e) => { const v = e.target.value; try { window.localStorage.setItem('datj-co-q', v); } catch (x) {} this.setState({ coQ: v }); }, clearCoQ: (ev) => { try { window.localStorage.removeItem('datj-co-q'); } catch (x) {} this.setState({ coQ: '', subCode: '' });
-            /* the boxes keep what was typed unless it's emptied on screen too (both search boxes share the name) */
-            ['coq', 'cmpq'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
-            try { const box = ev && ev.currentTarget && ev.currentTarget.parentElement && ev.currentTarget.parentElement.querySelector('input'); if (box) box.focus(); } catch (x) {} }, hasCoQ: !!q,
+          coQ: this.state.coQ, setCoQ: (e) => { if (Date.now() - (this.coCleared || 0) < 600) { e.target.value = ''; return; } const v = e.target.value; try { window.localStorage.setItem('datj-co-q', v); } catch (x) {} this.setState({ coQ: v }); }, clearCoQ: (ev) => {
+            // Phones keep the last typed word as a suggestion and put it back into the box when the keyboard closes, so:
+            // close the keyboard first, ignore that late re-entry for a moment, and empty both boxes on screen again after it
+            const boxes = ['coq', 'cmpq'].map(id => document.getElementById(id)).filter(Boolean), touch = (() => { try { return matchMedia('(pointer: coarse)').matches; } catch (x) { return false; } })();
+            boxes.forEach(b => { try { b.blur(); } catch (x) {} });
+            this.coCleared = Date.now();
+            try { window.localStorage.removeItem('datj-co-q'); } catch (x) {} this.setState({ coQ: '', subCode: '' });
+            const empty = () => ['coq', 'cmpq'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+            empty(); setTimeout(empty, 0); setTimeout(empty, 150); setTimeout(empty, 400);
+            if (!touch) { try { const box = ev && ev.currentTarget && ev.currentTarget.parentElement && ev.currentTarget.parentElement.querySelector('input'); if (box) setTimeout(() => box.focus(), 0); } catch (x) {} } }, hasCoQ: !!q,
           coHint: qs.length ? 'Showing rehearsals with “' + this.state.coQ.trim() + '”, plus large groups, Hip Hop Company and dress rehearsals (they don’t list names).' + twinTip : 'Type your dancer’s first name to see only their rehearsals. It’s remembered on this device.',
           coAddAll: coAddAll, coSubLabel: dancerName ? '↻ Subscribe to ' + dancerName + '’s calendar' : '↻ Subscribe (updates on its own)', coPdf: coPdf, coPdfLabel: dancerName ? 'Download ' + dancerName + '’s PDF' : 'Download PDF', coAddLabel: dancerName ? 'Add ' + dancerName + '’s schedule to my calendar' : 'Add all to my calendar',
           coDays: dates.map(d => ({ day: dayName(d), off: offBy[d] ? 'No rehearsals today for ' + offBy[d].join(', ') : '', hasOff: !!offBy[d], rows: by[d].map(row) })),
