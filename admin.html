@@ -455,6 +455,7 @@
     { id: 'featured', label: 'Featured events', short: 'Featured', g: 'Everyday', tab: 1 },
     { id: 'calendar', label: 'Studio calendar', short: 'Calendar', g: 'Everyday', tab: 1 },
     { id: 'emails', label: '✉️ Emails', short: 'Emails', g: 'Everyday' },
+    { id: 'season', label: '🌱 New season', short: 'New season', g: 'Once a season' },
     { id: 'homepage', label: 'Homepage', short: 'Homepage', g: 'Pages' },
     { id: 'styles', label: 'Classes & dance styles', short: 'Styles', g: 'Pages' },
     { id: 'summer', label: 'Summer', short: 'Summer', g: 'Pages' },
@@ -477,7 +478,7 @@
   const who = { email: '', owner: false, ownerEmail: '' };
   let helpers = [], accBusy = false, accMsg = '';
   const shown = (p) => !p.ownerOnly || !!(ENV && who.owner);
-  const GROUPS = ['Everyday', 'Pages', 'Money & rules', 'Site setup'];
+  const GROUPS = ['Everyday', 'Once a season', 'Pages', 'Money & rules', 'Site setup'];
   let menuOpen = false;
 
   const SOON = [];
@@ -961,7 +962,7 @@
   let calMsg = '', calConfirm = false;
   function calTools() { const past = draft.calendar.filter(isPast).length;
     return '<div class="panel" style="margin-bottom: 18px;"><div style="display: flex; flex-wrap: wrap; gap: 18px; align-items: flex-start; justify-content: space-between;">'
-      + '<div style="flex: 1; min-width: 240px;"><div class="field" style="margin: 0 0 8px;"><label for="calSheetUrl">Your calendar Google Sheet</label><input id="calSheetUrl" type="url" value="' + esc(draft.calSheet || '') + '" placeholder="https://docs.google.com/spreadsheets/d/…"><p class="hint">Same columns as the template. Edit dates there, then Check for updates to review them here.</p></div><button type="button" class="btn dark" data-calcheck="1" style="margin-bottom: 14px;">🔄 Check for updates</button><div class="field" style="margin: 0;"><label for="calFile">Or upload an Excel file</label><input id="calFile" type="file" accept=".xlsx,.xls,.csv"><p class="hint">One row per date. Rows with the same title and start date update what’s here; everything else is added. <a href="Studio_Calendar_TEMPLATE.xlsx" download style="text-decoration: underline;">Download the template</a></p></div></div>'
+      + '<div style="flex: 1; min-width: 240px;"><div style="margin: 0 0 10px;"><div class="lbl" style="margin: 0 0 6px;">Your calendar Google Sheet</div>' + (draft.calSheet ? '<p class="hint" style="margin: 0 0 8px;">Edit dates there, then Check for updates to review them here.</p>' + openSheet(draft.calSheet) : '<p class="hint" style="margin: 0;">No sheet linked yet.</p>') + toSeason(!!draft.calSheet) + '</div><button type="button" class="btn dark" data-calcheck="1" style="margin-bottom: 14px;">🔄 Check for updates</button><div class="field" style="margin: 0;"><label for="calFile">Or upload an Excel file</label><input id="calFile" type="file" accept=".xlsx,.xls,.csv"><p class="hint">One row per date. Rows with the same title and start date update what’s here; everything else is added. <a href="Studio_Calendar_TEMPLATE.xlsx" download style="text-decoration: underline;">Download the template</a></p></div></div>'
       + '<div style="min-width: 220px;">' + (past ? (calConfirm ? '<p style="margin: 0 0 8px;"><b>Remove ' + past + ' past date' + (past === 1 ? '' : 's') + '?</b> They’re already hidden from families.</p><button type="button" class="btn primary" data-calpast="yes">Yes, remove them</button> <button type="button" class="btn ghost" data-calpast="no">Cancel</button>'
           : '<button type="button" class="btn" data-calpast="ask">Remove past dates (' + past + ')</button><p class="hint">Clears dates that already happened. Nothing changes on the site until you Publish.</p>') : '<p class="hint" style="margin: 0;">No past dates to clear.</p>') + '</div></div>'
       + (calMsg ? '<div class="note" style="margin-top: 12px;">' + calMsg + '</div>' : '') + '</div>'; }
@@ -1186,7 +1187,7 @@
     const aw = (days) => (days || []).map(d => d.label + ' ' + d.rows.filter(r => r.awards).map(r => r.perf).join('/')).join(' | '); if (aw(a) !== aw(b)) out.push('🏆 Awards times changed');
     if (!out.length) out.push('Details changed (venue, links, costumes or groups); the schedule itself is the same.');
     return '<b>What changed since last time (' + out.length + '):</b><ul style="margin: 6px 0 10px; padding-left: 18px;">' + out.slice(0, 40).map(x => '<li>' + esc(x) + '</li>').join('') + (out.length > 40 ? '<li>…and ' + (out.length - 40) + ' more</li>' : '') + '</ul><p style="margin: 0 0 10px;">These are in your draft only. Check the preview below, then Publish. <button type="button" class="btn ghost" data-compundo="1">Undo these updates</button></p>'; }
-  function compCheck() { const L = compsList(); const c = L.find(x => x.id === compSel) || L[0]; const url = draft.coEdit.sheet || draft.coEdit.compSheet; if (!url) { compMsg = 'Paste the Company sheet link above first.'; return render(); }
+  function compCheck() { const L = compsList(); const c = L.find(x => x.id === compSel) || L[0]; const url = draft.coEdit.sheet || draft.coEdit.compSheet; if (!url) { compMsg = 'Add the Company sheet link under 🌱 New season first.'; return render(); }
     compMsg = 'Checking your Google Sheet…'; render();
     sheetTabs(url, ['Competitions', 'Routines', 'Groups', 'Arrival reminders'], n => NEED[n]).then(wb => {
       const rows = readSheet(wb.Sheets['Competitions'] || {}).filter(r => col(r, 'tab') || col(r, 'competition')); const crow = findCompRow(rows, c); const tab = crow ? (col(crow, 'tab') || col(crow, 'competition')) : '';
@@ -1198,7 +1199,7 @@
         compUndo = { id: c.id, before: before, existed: existed }; compMsg = compDiffHtml(before.days, c2.days) + compMsg; saveDraft(); render(); }); })
     .catch(e => { compMsg = esc((e && e.message) || 'Couldn’t reach the sheet.'); render(); }); }
   let calPending = null;
-  function calCheck() { if (!draft.calSheet) { calMsg = 'Paste your calendar Google Sheet link first.'; return render(); } calMsg = 'Checking your Google Sheet…'; render();
+  function calCheck() { if (!draft.calSheet) { calMsg = 'Add your calendar Google Sheet link under 🌱 New season first.'; return render(); } calMsg = 'Checking your Google Sheet…'; render();
     sheetTabs(draft.calSheet, ['Events'], () => 'what').then(wb => { const out = readEvents(wb); if (out.error) { calMsg = esc(out.error); return render(); }
       const key = (e) => String(e.title).trim().toLowerCase() + '|' + e.start; const cur = {}; draft.calendar.forEach(e => { cur[key(e)] = e; });
       const F = ['end', 'where', 'type', 'lock', 'hidden', 'iWhen', 'iWhere', 'iBody']; const add = [], chg = [], seen = {};
@@ -1320,7 +1321,7 @@
       + field('compNotes', 'Notes for everyone (one per line, shown in yellow)', (c.notes || []).join('\n'), 400, { area: true, hint: 'e.g. Hair change for Love Shack and Step In Time because of timing.' })
       + ['Prop transportation sign-up', 'Competition rules', 'Livestream', 'Hair video (newbies)', 'Makeup pictures'].map((lbl, i) => field('compL' + i, lbl + ' link', ((c.links || []).find(l => l.label.toLowerCase().startsWith(lbl.toLowerCase().split(' ')[0])) || {}).url || '', 400)).join('')
       + '<p class="hint">These also come from the Competitions tab of the workbook; whatever you type here wins.</p></div></details>'
-      + '<div class="panel" style="margin: 0 0 12px;"><p class="hint" style="margin: 0 0 10px;">Competition schedules come from the competition’s tab in the Company sheet (the link above). When the schedule changes, tap Check for updates: you’ll see what changed and a preview, and nothing goes live until you Publish.</p>' + (calOf(c) ? '' : '<div class="note" style="margin-bottom: 14px;"><b>⚠ ' + esc(c.name) + ' isn’t on the Studio calendar.</b> Its dates, place and address come from there, so families won’t see when it is. On the Studio calendar, add a date called “Competition: ' + esc(c.name) + ' (City)”, or make the name in the sheet’s Competitions tab match the one on the calendar.</div>') + '<button type="button" class="btn dark" data-compcheck="1">🔄 Check for updates for ' + esc(c.name) + '</button></div>'
+      + '<div class="panel" style="margin: 0 0 12px;"><p class="hint" style="margin: 0 0 10px;">Competition schedules come from the competition’s tab in the Company sheet (Open the sheet under Rehearsal calendar). When the schedule changes, tap Check for updates: you’ll see what changed and a preview, and nothing goes live until you Publish.</p>' + (calOf(c) ? '' : '<div class="note" style="margin-bottom: 14px;"><b>⚠ ' + esc(c.name) + ' isn’t on the Studio calendar.</b> Its dates, place and address come from there, so families won’t see when it is. On the Studio calendar, add a date called “Competition: ' + esc(c.name) + ' (City)”, or make the name in the sheet’s Competitions tab match the one on the calendar.</div>') + '<button type="button" class="btn dark" data-compcheck="1">🔄 Check for updates for ' + esc(c.name) + '</button></div>'
       + '<div class="field"><label for="compFile">Or upload an Excel file instead</label><input id="compFile" type="file" accept=".xlsx,.xls,.csv"><p class="hint">Uses the <b>' + esc(c.name) + '</b> tab plus the Routines tab (dancers, choreographer and costume pieces). <a href="Competition_Workbook_TEMPLATE.xlsx" download style="text-decoration: underline;">Download the template</a></p></div>'
       + (compMsg ? '<div class="note">' + compMsg + '</div>' : '')
       + (() => { const k = checkComp(c); if (!c.days.length) return ''; return '<div style="margin-top: 10px; padding: 12px 14px; background: ' + (k.err.length ? '#FDECEC' : k.warn.length ? '#FFF6D6' : '#E8F7EE') + ';"><b>' + (k.err.length ? '✗ Fix before posting' : k.warn.length ? '⚠ Looks mostly good' : '✓ Format check passed') + '</b> · ' + k.n + ' routines checked'
@@ -1392,6 +1393,29 @@
     if (!ENV) { pwEdit = ''; render(); return toast('In this prototype the password stays the same. On the test site, Publish switches to the new one.'); }
     setPwNext(w, v); pwEdit = ''; render(); toast('New password ready. Publish to make it live.');
   }
+  // ---------- New season: everything that changes once a year, for the whole studio ----------
+  // The sheet links are set here; the Calendar and Company Central screens keep their Check-for-updates buttons and an Open link.
+  const openSheet = (u, label) => /^https:\/\/docs\.google\.com\//.test(u || '') ? '<a class="btn ghost" href="' + esc(u) + '" target="_blank" rel="noopener">' + (label || 'Open the sheet ↗') + '</a>' : '';
+  const toSeason = (has) => '<p class="hint" style="margin: 6px 0 0;">' + (has ? 'To use a different sheet, change the link under ' : 'Add the sheet’s link under ') + '<a href="#season" data-go="season" style="text-decoration: underline;">🌱 New season</a>.</p>';
+  function vSeason() {
+    const card = (n, t, lede, body) => '<div class="panel" style="margin-bottom: 14px;"><div class="lbl" style="margin: 0 0 2px;">Step ' + n + '</div><h3 style="margin: 0 0 6px; font-size: 18px;">' + t + '</h3>' + (lede ? '<p class="lede" style="margin: 0 0 12px;">' + lede + '</p>' : '') + body + '</div>';
+    const goBtn = (p, l) => '<button type="button" class="btn" data-go="' + p + '">' + l + ' →</button>';
+    const ce = draft.coEdit, past = draft.calendar.filter(isPast).length, nSched = ce ? (ce.comps || []).filter(c => (c.days || []).length).length : 0;
+    const coLink = ce ? field('coSheet', 'Company sheet link', ce.sheet || ce.compSheet || '', 400, { hint: 'Make a copy of last season’s sheet (or the template), fill in the new rehearsals and routines, then paste its link here.' }) + openSheet(ce.sheet || ce.compSheet)
+      : '<p class="hint" style="margin: 0 0 10px;">Open Company Central once with the Company password, then come back here to paste the new sheet.</p>' + goBtn('company2', 'Open Company Central');
+    const clear = !ce ? '<p class="hint" style="margin: 0;">Loading the Company content… (or open Company Central once with the Company password).</p>'
+      : newSeasonAsk ? '<p style="margin: 0 0 10px;"><b>Put away ' + nSched + ' competition schedule' + (nSched === 1 ? '' : 's') + ' and remove ' + past + ' past date' + (past === 1 ? '' : 's') + '?</b> Families stop seeing them after you Publish.</p><button type="button" class="btn primary" data-newseason="yes">Yes, clear last season</button> <button type="button" class="btn ghost" data-newseason="no">Cancel</button>'
+      : '<button type="button" class="btn" data-newseason="ask">Clear last season</button>';
+    return '<h1>🌱 New season</h1><p class="lede">Everything that changes once a year, in order. Nothing goes live until you Publish, so you can set it all up ahead of time and publish once.</p>'
+      + card(1, 'Clear last season', 'Puts away last season’s competition schedules and removes dates that already happened from the Studio calendar.', clear)
+      + card(2, 'Studio calendar sheet', 'The Google Sheet with the season’s dates: sessions, breaks, events, competitions and the Annual Performance.',
+          field('seasonCalSheet', 'Studio calendar sheet link', draft.calSheet || '', 400, { hint: 'After pasting a new sheet, go to Studio calendar and press Check for updates to bring its dates in.' }) + '<div class="row" style="margin-top: 4px; justify-content: flex-start; gap: 8px; flex-wrap: wrap;">' + openSheet(draft.calSheet) + goBtn('calendar', 'Studio calendar') + '</div>')
+      + card(3, 'Sessions, prices and classes', 'New session dates and tuition, then pull the new class schedule from Studio Pro.', '<div class="row" style="justify-content: flex-start; gap: 8px; flex-wrap: wrap;">' + goBtn('prices', 'Sessions & prices') + goBtn('styles', 'Refresh classes from Studio Pro') + '</div>')
+      + card(4, 'Company sheet', 'Rehearsals, days off, groups, routines and each competition’s schedule, all in one sheet. Company Central and every subscribed dancer calendar read it.', coLink)
+      + card(5, 'Season passwords', 'Give families the new passwords at the start of the season. Each new one goes live when you Publish.', pwPanel('company') + '<div style="height: 10px;"></div>' + pwPanel('recital'))
+      + card(6, 'Company Central', 'Add the new competitions and conventions, update the handbook, highlights and “Season ends on”, then turn the Between seasons page Off.', goBtn('company2', 'Company Central'))
+      + card(7, 'Publish', 'Check the site with Preview, then Publish once everything above is ready.', '');
+  }
   let newSeasonAsk = false;
   function vCompany() {
     const pwBox = pwPanel('company');
@@ -1409,7 +1433,7 @@
       + field('seasonTitle', 'Heading', S.title, 60) + field('seasonMsg', 'Message (one paragraph per line)', S.msg, 600, { area: true }) + '</div>'
       + '<div><div class="lbl">How it looks</div><div style="background: #FFFFFF; border: 1px solid var(--line); padding: 22px;"><div style="font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase; color: #555555;">Company Central</div><h3 style="font-size: 26px; letter-spacing: -0.03em; margin: 6px 0 10px;">' + esc(S.title) + '</h3>' + esc(S.msg).split('\n').filter(Boolean).map(x => '<p style="margin: 0 0 8px; color: #333333;">' + x + '</p>').join('') + '</div>'
       + '<p style="margin-top: 10px;"><a class="btn" href="company-families.html?preview=draft" target="_blank" rel="noopener">Preview Company Central ↗</a></p><p class="hint">Opens the page with your unpublished changes. Families see it only after you Publish.</p></div></div>'
-      + '<details style="margin-top: 6px;"><summary style="cursor: pointer; font-weight: 700;">Setting up next season</summary><ol style="margin: 10px 0 0; padding-left: 20px; line-height: 1.7;"><li>Add next season’s competitions and conventions (top of this screen).</li><li>Paste the new season’s Google Sheet link under Competition schedules, then Check for updates when schedules come in.</li><li>Paste the new rehearsal spreadsheet link.</li><li>Update the handbook, highlights and “Season ends on”.</li><li>Change the Company password.</li><li>Preview Company Central, turn this page Off and Publish.</li></ol><p class="hint">Old competition schedules hide themselves after their take-down dates, so there’s nothing to archive.</p></details></div>');
+      + '<p class="hint" style="margin-top: 6px;">Setting up next season? Follow the steps under <a href="#season" data-go="season" style="text-decoration: underline;">🌱 New season</a>.</p></div>');
     const head = '<h1>🔒 Company Central</h1><p class="lede">The page Company families open with the password: what’s next, competition schedules and costume checklists, the rehearsal calendar and the handbook.</p>';
     if (!co) return head + pwBox + (coBusy ? '<p class="lede">Loading the Company content…</p>' : openBox) + seasonBox + (coBusy || ENV ? '' : '<div class="note" style="margin-top: 14px;"><b>Prototype only:</b> this browser doesn’t know the Company password yet, so it can’t open the competition schedules, rehearsal calendar and handbook to edit. Enter it above once and they appear below; after that this browser remembers it. In the real admin (behind your login) everything shows right away.</div>');
     const R = co.rehearsals || [], up = R.filter(r => r.date >= todayISO);
@@ -1434,7 +1458,7 @@
       + sec('This season', '', '<div class="panel"><div class="field"><label for="coSeason">Season ends on</label><input id="coSeason" type="date" value="' + esc(draft.coEdit.seasonEnd || '') + '"><p class="hint">“Coming up for Company” lists Company dates up to this day. Usually the week after the Annual Performance.</p></div></div>')
       + sec('Rehearsal calendar', 'Comes from your Company sheet. Keep editing it there: subscribed dancer calendars pick up changes within about 10 minutes, and Company Central every time you Publish. Changed only the sheet? Press Update from the sheet.',
           '<div class="panel"><p style="margin: 0 0 10px;"><b>' + R.length + ' entries</b> on ' + new Set(R.map(r => r.date)).size + ' dates · ' + up.length + ' still to come · updated ' + esc(co.updated || '') + '</p>'
-          + field('coSheet', 'Company sheet link', draft.coEdit.sheet || draft.coEdit.compSheet || '', 400, { hint: 'The season’s Company Google Sheet: rehearsals, days off, groups, routines and each competition’s schedule all live in this one sheet. Company Central and every subscribed dancer calendar read it. Each new season, paste the new season’s sheet here.' }) + '<div class="row" style="margin-top: 4px;"><button type="button" class="btn" data-sheetsync="1">Update from the sheet</button><span class="hint">Puts the sheet’s latest rehearsals, days off and groups on Company Central now.</span></div></div>')
+          + '<div class="row" style="margin-top: 4px; justify-content: flex-start; gap: 8px; flex-wrap: wrap;"><button type="button" class="btn" data-sheetsync="1">Update from the sheet</button>' + openSheet(draft.coEdit.sheet || draft.coEdit.compSheet) + '<span class="hint">Puts the sheet’s latest rehearsals, days off and groups on Company Central now.</span></div>' + ((draft.coEdit.sheet || draft.coEdit.compSheet) ? '' : '<p class="hint">No Company sheet linked yet.</p>') + toSeason(!!(draft.coEdit.sheet || draft.coEdit.compSheet)) + '</div>')
       + sec('Handbook', 'The topic tiles. Write each like a cheat sheet: headings and short points.', listEditor({ key: 'cotop', noun: 'a topic', get: () => draft.coEdit.topics, title: x => (x.icon ? x.icon + ' ' : '') + (x.t || 'New topic'), sub: x => x.d,
           preview: x => '<div class="lbl">When families open it</div><div class="pv-slide" style="margin-top: 0;"><div class="tg">Company families</div><h3>' + esc(x.t) + '</h3><p style="color: var(--mut);">' + esc(x.d) + '</p>' + bodyHtml(x.body || '') + '</div>',
           newItem: () => ({ id: 't' + Date.now(), icon: '★', t: '', d: '', body: '' }), fields: [{ k: 'icon', label: 'Icon', max: 2 }, { k: 't', label: 'Topic', max: 28 }, { k: 'd', label: 'One line', max: 80 }, { k: 'body', label: 'What it says', max: 4000, area: true, hint: '“## Heading”, then “- ” for each point. [Form name](https://…) for a button.' }] }))
@@ -1588,7 +1612,7 @@
   // ---------- render + events ----------
   function render() {
     navs(); status();
-    $('main').innerHTML = page === 'emails' ? vEmails() : page === 'company2' ? vCompany() : CPAGES[page] ? CPAGES[page]() : page === 'banner' ? vBanner() : page === 'recital' ? vRecital() : page === 'staff' ? vStaff() : page === 'homepage' ? vHomepage() : page === 'prices' ? vPrices() : page === 'nav' ? vNav() : page === 'photos' ? vPhotos() : page === 'featured' ? vFeatured() : page === 'calendar' ? vCalendar() : page === 'policies' ? vPolicies() : page === 'access' ? vAccess() : vHome();
+    $('main').innerHTML = page === 'emails' ? vEmails() : page === 'season' ? vSeason() : page === 'company2' ? vCompany() : CPAGES[page] ? CPAGES[page]() : page === 'banner' ? vBanner() : page === 'recital' ? vRecital() : page === 'staff' ? vStaff() : page === 'homepage' ? vHomepage() : page === 'prices' ? vPrices() : page === 'nav' ? vNav() : page === 'photos' ? vPhotos() : page === 'featured' ? vFeatured() : page === 'calendar' ? vCalendar() : page === 'policies' ? vPolicies() : page === 'access' ? vAccess() : vHome();
     const pv = () => $('pv');
     if (page === 'banner') { bind('bText', 60, v => draft.banner.text = v, () => pv().innerHTML = bannerPreview()); bindPicker('bLink', v => draft.banner.href = v, () => pv().innerHTML = bannerPreview()); }
     if (page === 'homepage') { const h = draft.home, uh = () => $('pvHero').innerHTML = heroPreview();
@@ -1601,14 +1625,14 @@
           let added = 0, updated = 0; out.items.forEach(it => { const ex = draft.calendar.find(e => e.title.trim().toLowerCase() === it.title.toLowerCase() && e.start === it.start); if (ex) { const id = ex.id; Object.assign(ex, keepLocked(it, ex), { id: id || it.id }); updated++; } else { draft.calendar.push(it); added++; } });
           sortCal(); saveDraft(); calMsg = '✓ ' + added + ' new date' + (added === 1 ? '' : 's') + ' added, ' + updated + ' updated.' + (out.bad.length ? ' <b>Skipped (no start date):</b> ' + esc(out.bad.join(', ')) : '') + (warn.length ? '<ul style="margin: 6px 0 0; padding-left: 18px;">' + warn.slice(0, 10).map(x => '<li>⚠ ' + esc(x) + '</li>').join('') + '</ul>' : ' Format check passed.') + ' Tap any date below to see how families will see it, then Publish.'; render(); })
         .catch(() => { calMsg = 'Couldn’t read that file. Save it as .xlsx and try again.'; render(); }); }); }
-    if (page === 'calendar') bind('calSheetUrl', 400, v => { draft.calSheet = v.trim(); });
+    if (page === 'season') { bind('seasonCalSheet', 400, v => { draft.calSheet = v.trim(); }); if (draft.coEdit) bind('coSheet', 400, v => { draft.coEdit.sheet = v.trim(); draft.coEdit.compSheet = v.trim(); }); }
     if (page === 'company2') { const sa = $('seasonAuto'); if (sa) sa.addEventListener('change', () => { draft.season.autoOn = sa.value; saveDraft(); render(); });         bind('seasonTitle', 60, v => { draft.season.title = v; }); bind('seasonMsg', 600, v => { draft.season.msg = v; }); }
-    if (page === 'company2' && !co && !coBusy && !coErr) { const pw = pwNow('company'); if (pw) setTimeout(() => coUnlock(pw, true), 0); }
+    if ((page === 'company2' || page === 'season') && !co && !coBusy && !coErr) { const pw = pwNow('company'); if (pw) setTimeout(() => coUnlock(pw, true), 0); }
     if (page === 'recital' && !famTried && !famOpened && draft.rc.some(r => r.lockMore && !(r.more || '').trim())) { const pw = pwNow('recital'); if (pw) { famTried = true; setTimeout(() => famUnlockA(pw, true), 0); } }
     const accIn = $('accNew'); if (accIn) accIn.addEventListener('keydown', (e) => { if (e.key === 'Enter') accAdd(); });
     const pwIn = $('pwNew'); if (pwIn) { if (!pwIn.value) pwIn.focus(); pwIn.addEventListener('keydown', (e) => { if (e.key === 'Enter') pwUse(pwEdit); if (e.key === 'Escape') { pwEdit = ''; pwErr = ''; render(); } }); }
     if (page === 'company2') { const g = $('coGo'); if (g) { const open = () => { const v = $('coPw').value.trim(); if (!v) return toast('Type the password first.'); coUnlock(v); }; g.addEventListener('click', open); $('coPw').addEventListener('keydown', (e) => { if (e.key === 'Enter') open(); }); }
-      if (co) { bind('coSheet', 400, v => { draft.coEdit.sheet = v.trim(); draft.coEdit.compSheet = v.trim(); });
+      if (co) {
         const curC = () => { const c = compsList().find(x => x.id === compSel) || compsList()[0]; if (c && !draft.coEdit.comps.includes(c)) draft.coEdit.comps.push(c); return c; };
         bind('compLip', 120, v => { curC().lipstick = v; });
         bind('compNotes', 400, v => { curC().notes = v.split('\n').map(x => x.trim()).filter(Boolean); });
