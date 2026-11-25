@@ -903,6 +903,9 @@
       + '<div style="min-width: 220px;">' + (past ? (calConfirm ? '<p style="margin: 0 0 8px;"><b>Remove ' + past + ' past date' + (past === 1 ? '' : 's') + '?</b> They’re already hidden from families.</p><button type="button" class="btn primary" data-calpast="yes">Yes, remove them</button> <button type="button" class="btn ghost" data-calpast="no">Cancel</button>'
           : '<button type="button" class="btn" data-calpast="ask">Remove past dates (' + past + ')</button><p class="hint">Clears dates that already happened. Nothing changes on the site until you Publish.</p>') : '<p class="hint" style="margin: 0;">No past dates to clear.</p>') + '</div></div>'
       + (calMsg ? '<div class="note" style="margin-top: 12px;">' + calMsg + '</div>' : '') + '</div>'; }
+  // A "Company details locked" / "Company Central only" row with every detail cell blank keeps the details already in
+  // the admin (they're private, so the sheet may not have them); type something to replace them
+  const keepLocked = (it, ex) => { if (ex && it.lock && !tr(it.iWhen) && !tr(it.iWhere) && !tr(it.iBody)) { it.iWhen = ex.iWhen || ''; it.iWhere = ex.iWhere || ''; it.iBody = ex.iBody || ''; } return it; };
   function readEvents(wb) { const ws = wb.Sheets['Events'] || wb.Sheets[wb.SheetNames[0]]; const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '', raw: true });
     const hi = rows.findIndex(r => r.map(x => String(x).toLowerCase()).includes('what')); if (hi < 0) return { error: 'Couldn’t find the header row (the one that starts with “What”).' };
     const H = rows[hi].map(x => String(x).trim().toLowerCase()); const at = (r, n) => { const i = H.findIndex(h => h.startsWith(n)); return i < 0 ? '' : r[i]; };
@@ -1127,7 +1130,7 @@
     sheetTabs(draft.calSheet, ['Events'], () => 'what').then(wb => { const out = readEvents(wb); if (out.error) { calMsg = esc(out.error); return render(); }
       const key = (e) => String(e.title).trim().toLowerCase() + '|' + e.start; const cur = {}; draft.calendar.forEach(e => { cur[key(e)] = e; });
       const F = ['end', 'where', 'type', 'lock', 'hidden', 'iWhen', 'iWhere', 'iBody']; const add = [], chg = [], seen = {};
-      out.items.forEach(it => { const k = key(it); seen[k] = 1; const ex = cur[k]; if (!ex) add.push(it); else if (F.some(f => String(ex[f] || '') !== String(it[f] || ''))) chg.push(it); });
+      out.items.forEach(it => { const k = key(it); seen[k] = 1; const ex = cur[k]; keepLocked(it, ex); if (!ex) add.push(it); else if (F.some(f => String(ex[f] || '') !== String(it[f] || ''))) chg.push(it); });
       const gone = draft.calendar.filter(e => !seen[key(e)] && !isPast(e));
       calPending = { add: add, chg: chg, gone: gone, key: key };
       calMsg = (!add.length && !chg.length && !gone.length) ? '✓ Checked your sheet: nothing changed since last time.' : calPendingHtml(); render(); })
@@ -1499,7 +1502,7 @@
     if (page === 'calendar') { const f = $('calFile'); if (f) f.addEventListener('change', () => { const file = f.files[0]; if (!file) return; if (!window.XLSX) { calMsg = 'The spreadsheet reader is still loading. Try again in a second.'; return render(); }
         file.arrayBuffer().then(buf => { const out = readEvents(XLSX.read(buf, { cellDates: true })); if (out.error) { calMsg = out.error; return render(); }
           const warn = []; out.items.forEach(it => { if (it.end && it.end < it.start) warn.push(it.title + ': ends before it starts'); if (it.start < todayISO) warn.push(it.title + ': already in the past'); if (/^Competition/i.test(it.title) && !/^Competition:/.test(it.title)) warn.push(it.title + ': write “Competition:” (with the colon) so it shows in competition schedules'); });
-          let added = 0, updated = 0; out.items.forEach(it => { const ex = draft.calendar.find(e => e.title.trim().toLowerCase() === it.title.toLowerCase() && e.start === it.start); if (ex) { const id = ex.id; Object.assign(ex, it, { id: id || it.id }); updated++; } else { draft.calendar.push(it); added++; } });
+          let added = 0, updated = 0; out.items.forEach(it => { const ex = draft.calendar.find(e => e.title.trim().toLowerCase() === it.title.toLowerCase() && e.start === it.start); if (ex) { const id = ex.id; Object.assign(ex, keepLocked(it, ex), { id: id || it.id }); updated++; } else { draft.calendar.push(it); added++; } });
           sortCal(); saveDraft(); calMsg = '✓ ' + added + ' new date' + (added === 1 ? '' : 's') + ' added, ' + updated + ' updated.' + (out.bad.length ? ' <b>Skipped (no start date):</b> ' + esc(out.bad.join(', ')) : '') + (warn.length ? '<ul style="margin: 6px 0 0; padding-left: 18px;">' + warn.slice(0, 10).map(x => '<li>⚠ ' + esc(x) + '</li>').join('') + '</ul>' : ' Format check passed.') + ' Tap any date below to see how families will see it, then Publish.'; render(); })
         .catch(() => { calMsg = 'Couldn’t read that file. Save it as .xlsx and try again.'; render(); }); }); }
     if (page === 'calendar') bind('calSheetUrl', 400, v => { draft.calSheet = v.trim(); });
