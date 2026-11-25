@@ -1281,7 +1281,7 @@
     if (!ev || !ev.start) return c;
     const M3 = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'], a = ev.start.split('-').map(Number), b = (ev.end || ev.start).split('-').map(Number);
     return Object.assign(c, { calId: ev.id, dates: M3[a[1] - 1] + ' ' + a[2] + (ev.end && ev.end !== ev.start ? (a[1] === b[1] ? '–' + b[2] : ' – ' + M3[b[1] - 1] + ' ' + b[2]) : '') + ', ' + b[0],
-      venue: ev.where || c.venue || '', address: ev.iWhere || c.address || '', hideAfter: ev.end || ev.start }); }
+      venue: ev.where || c.venue || '', address: ev.iWhere || c.address || '', hideAfter: (c.hideOwn && c.hideAfter) || ev.end || ev.start }); }
   // Checks a competition before it goes up: problems that would look wrong to families
   const TIME_RE = /^\d{1,2}:\d{2}\s?(AM|PM)$/i;
   function checkComp(c) { const err = [], warn = [], days = c.days || [];
@@ -1320,7 +1320,7 @@
       + '<div class="panel"><p style="margin: 0 0 10px;"><b>' + esc(c.title || c.name) + '</b> · ' + esc(c.dates || '') + (c.venue ? ' · ' + esc(c.venue) : '') + '</p>'
       + '<div class="field"><label>Status</label><div class="chips">' + ['Preliminary', 'Final'].map(st => '<button type="button" class="chip" data-cstatus="' + st + '" aria-pressed="' + (c.status === st) + '">' + st + '</button>').join('') + '</div><p class="hint">Families see a yellow “Preliminary” or black “Final” tag on the schedule.</p></div>'
       + '<div class="field"><label>On Company Central</label><div class="chips">' + [['show', 'Showing'], ['hide', 'Hidden']].map(o => '<button type="button" class="chip" data-cshow="' + o[0] + '" aria-pressed="' + ((c.show !== false) === (o[0] === 'show')) + '">' + o[1] + '</button>').join('') + '</div>'
-      + '<div class="field" style="margin-top: 10px;"><label for="compHide">Take it down automatically after</label><input id="compHide" type="date" value="' + esc(c.hideAfter || '') + '"><p class="hint">Usually the last day of the competition. Two can show at once on back-to-back weekends; families pick between them.</p></div></div>'
+      + '<div class="field" style="margin-top: 10px;"><label for="compHide">Take it down automatically after</label><input id="compHide" type="date" value="' + esc(c.hideAfter || '') + '"><p class="hint">Starts as the competition’s last day (from the Studio calendar). Pick a later date to keep it up longer; clear it to go back to the last day. Two can show at once on back-to-back weekends; families pick between them.</p></div></div>'
       + '<details style="margin: 4px 0 14px;"><summary style="cursor: pointer; font-weight: 700;">Lipstick, notes &amp; links</summary><div style="margin-top: 10px;">'
       + field('compLip', 'Lipstick / makeup line (top of the costume checklist)', c.lipstick || '', 120)
       + field('compNotes', 'Notes for everyone (one per line, shown in yellow)', (c.notes || []).join('\n'), 400, { area: true, hint: 'e.g. Hair change for Love Shack and Step In Time because of timing.' })
@@ -1643,7 +1643,7 @@
         bind('compNotes', 400, v => { curC().notes = v.split('\n').map(x => x.trim()).filter(Boolean); });
         ['Prop transportation sign-up', 'Competition rules', 'Livestream', 'Hair video (newbies)', 'Makeup pictures'].forEach((lbl, i) => bind('compL' + i, 400, v => { const c = curC(); c.links = c.links || []; let l = c.links.find(x => x.label.toLowerCase().startsWith(lbl.toLowerCase().split(' ')[0])); if (!l) { l = { label: lbl, url: '' }; c.links.push(l); } l.url = v.trim(); }));
         const se = $('coSeason'); if (se) se.addEventListener('change', () => { draft.coEdit.seasonEnd = se.value; saveDraft(); render(); });
-        const ch = $('compHide'); if (ch) ch.addEventListener('change', () => { const c = compsList().find(x => x.id === compSel) || compsList()[0]; c.hideAfter = ch.value; if (!draft.coEdit.comps.includes(c)) draft.coEdit.comps.push(c); saveDraft(); render(); });
+        const ch = $('compHide'); if (ch) ch.addEventListener('change', () => { const c = compsList().find(x => x.id === compSel) || compsList()[0]; c.hideAfter = ch.value; c.hideOwn = !!ch.value; if (!draft.coEdit.comps.includes(c)) draft.coEdit.comps.push(c); saveDraft(); render(); });
         const pv = $('compPrev'); if (pv) pv.addEventListener('toggle', () => { compOpenPrev = pv.open; });
 
         const f = $('compFile'); if (f) f.addEventListener('change', () => { const file = f.files[0]; if (!file) return; if (!window.XLSX) { compMsg = 'The spreadsheet reader is still loading. Try again in a second.'; return render(); }

@@ -170,7 +170,7 @@ var FEED = (function () {
       var a = ev.start.split('-').map(Number), b = (ev.end || ev.start).split('-').map(Number);
       var dates = M3[a[1] - 1] + ' ' + a[2] + (ev.end && ev.end !== ev.start ? (a[1] === b[1] ? '–' + b[2] : ' – ' + M3[b[1] - 1] + ' ' + b[2]) : '') + ', ' + b[0];
       var lk = (co.locked || {})[ev.id] || {};
-      return Object.assign({}, c, { calId: ev.id, dates: dates, venue: ev.where || c.venue || '', address: ev.iWhere || lk.where || c.address || '', hideAfter: ev.end || ev.start });
+      return Object.assign({}, c, { calId: ev.id, dates: dates, venue: ev.where || c.venue || '', address: ev.iWhere || lk.where || c.address || '', hideAfter: (c.hideOwn && c.hideAfter) || ev.end || ev.start });
     };
     (co.comps || []).map(calComp).filter(function (c) { return c.show !== false && (!c.hideAfter || c.hideAfter >= today) && (c.days || []).length; }).forEach(function (c) {
       var yr = (/(20\d\d)/.exec(c.dates || '') || [])[1]; if (!yr) return;
