@@ -1,0 +1,112 @@
+BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//Dance & All That Jazz//Calendar feed//EN
+CALSCALE:GREGORIAN
+METHOD:PUBLISH
+X-WR-CALNAME:D&ATJ · Session dates
+X-WR-TIMEZONE:America/Chicago
+REFRESH-INTERVAL;VALUE=DURATION:PT1H
+X-PUBLISHED-TTL:PT1H
+BEGIN:VTIMEZONE
+TZID:America/Chicago
+BEGIN:STANDARD
+DTSTART:19701101T020000
+RRULE:FREQ=YEARLY;BYMONTH=11;BYDAY=1SU
+TZOFFSETFROM:-0500
+TZOFFSETTO:-0600
+TZNAME:CST
+END:STANDARD
+BEGIN:DAYLIGHT
+DTSTART:19700308T020000
+RRULE:FREQ=YEARLY;BYMONTH=3;BYDAY=2SU
+TZOFFSETFROM:-0600
+TZOFFSETTO:-0500
+TZNAME:CDT
+END:DAYLIGHT
+END:VTIMEZONE
+BEGIN:VEVENT
+UID:cal-auto3@danceandallthatjazz.com
+DTSTAMP:20261125T200051Z
+DTSTART;VALUE=DATE:20261209
+DTEND;VALUE=DATE:20261210
+TRANSP:TRANSPARENT
+SUMMARY:Session 3 autopay
+LOCATION:Card on file
+DESCRIPTION:Studio calendar: https://leighagrimm-web.github.io/datj-test/fa
+ milies.html#calendar
+END:VEVENT
+BEGIN:VEVENT
+UID:cal-s3@danceandallthatjazz.com
+DTSTAMP:20261125T200051Z
+DTSTART;VALUE=DATE:20270106
+DTEND;VALUE=DATE:20270107
+TRANSP:TRANSPARENT
+SUMMARY:Session 3 begins
+LOCATION:All classes
+DESCRIPTION:Studio calendar: https://leighagrimm-web.github.io/datj-test/fa
+ milies.html#calendar
+END:VEVENT
+BEGIN:VEVENT
+UID:cal-att-policy@danceandallthatjazz.com
+DTSTAMP:20261125T200051Z
+DTSTART;VALUE=DATE:20270203
+DTEND;VALUE=DATE:20270204
+TRANSP:TRANSPARENT
+SUMMARY:3-Miss Attendance Policy begins
+DESCRIPTION:Studio calendar: https://leighagrimm-web.github.io/datj-test/fa
+ milies.html#calendar
+END:VEVENT
+BEGIN:VEVENT
+UID:cal-auto4@danceandallthatjazz.com
+DTSTAMP:20261125T200051Z
+DTSTART;VALUE=DATE:20270303
+DTEND;VALUE=DATE:20270304
+TRANSP:TRANSPARENT
+SUMMARY:Session 4 autopay
+LOCATION:Card on file
+DESCRIPTION:Studio calendar: https://leighagrimm-web.github.io/datj-test/fa
+ milies.html#calendar
+END:VEVENT
+BEGIN:VEVENT
+UID:cal-s4@danceandallthatjazz.com
+DTSTAMP:20261125T200051Z
+DTSTART;VALUE=DATE:20270310
+DTEND;VALUE=DATE:20270311
+TRANSP:TRANSPARENT
+SUMMARY:Session 4 begins
+LOCATION:All classes
+DESCRIPTION:Studio calendar: https://leighagrimm-web.github.io/datj-test/fa
+ milies.html#calendar
+END:VEVENT
+BEGIN:VEVENT
+UID:cal-no-makeups@danceandallthatjazz.com
+DTSTAMP:20261125T200051Z
+DTSTART;VALUE=DATE:20270310
+DTEND;VALUE=DATE:20270311
+TRANSP:TRANSPARENT
+SUMMARY:No makeup classes for the rest of the season
+DESCRIPTION:Studio calendar: https://leighagrimm-web.github.io/datj-test/fa
+ milies.html#calendar
+END:VEVENT
+BEGIN:VEVENT
+UID:cal-summer-session@danceandallthatjazz.com
+DTSTAMP:20261125T200051Z
+DTSTART;VALUE=DATE:20270618
+DTEND;VALUE=DATE:20270801
+TRANSP:TRANSPARENT
+SUMMARY:Summer Session
+LOCATION:At the studio
+DESCRIPTION:Studio calendar: https://leighagrimm-web.github.io/datj-test/fa
+ milies.html#calendar
+END:VEVENT
+BEGIN:VEVENT
+UID:cal-new-season@danceandallthatjazz.com
+DTSTAMP:20261125T200051Z
+DTSTART;VALUE=DATE:20270818
+DTEND;VALUE=DATE:20270819
+TRANSP:TRANSPARENT
+SUMMARY:New season begins
+DESCRIPTION:Studio calendar: https://leighagrimm-web.github.io/datj-test/fa
+ milies.html#calendar
+END:VEVENT
+END:VCALENDAR

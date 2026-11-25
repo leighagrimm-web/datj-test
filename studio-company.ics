@@ -1,0 +1,170 @@
+BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//Dance & All That Jazz//Calendar feed//EN
+CALSCALE:GREGORIAN
+METHOD:PUBLISH
+X-WR-CALNAME:D&ATJ · Company
+X-WR-TIMEZONE:America/Chicago
+REFRESH-INTERVAL;VALUE=DURATION:PT1H
+X-PUBLISHED-TTL:PT1H
+BEGIN:VTIMEZONE
+TZID:America/Chicago
+BEGIN:STANDARD
+DTSTART:19701101T020000
+RRULE:FREQ=YEARLY;BYMONTH=11;BYDAY=1SU
+TZOFFSETFROM:-0500
+TZOFFSETTO:-0600
+TZNAME:CST
+END:STANDARD
+BEGIN:DAYLIGHT
+DTSTART:19700308T020000
+RRULE:FREQ=YEARLY;BYMONTH=3;BYDAY=2SU
+TZOFFSETFROM:-0600
+TZOFFSETTO:-0500
+TZNAME:CDT
+END:DAYLIGHT
+END:VTIMEZONE
+BEGIN:VEVENT
+UID:cal-fmsc@danceandallthatjazz.com
+DTSTAMP:20261125T200051Z
+DTSTART;VALUE=DATE:20261017
+DTEND;VALUE=DATE:20261018
+TRANSP:TRANSPARENT
+SUMMARY:Feed My Starving Children
+LOCATION:Schaumburg
+DESCRIPTION:Company families: details are in Company Central (Company passw
+ ord).\nhttps://leighagrimm-web.github.io/datj-test/company-families.html
+END:VEVENT
+BEGIN:VEVENT
+UID:cal-revel@danceandallthatjazz.com
+DTSTAMP:20261125T200051Z
+DTSTART;VALUE=DATE:20261205
+DTEND;VALUE=DATE:20261207
+TRANSP:TRANSPARENT
+SUMMARY:Revel Convention
+LOCATION:Itasca
+DESCRIPTION:Company families: details are in Company Central (Company passw
+ ord).\nhttps://leighagrimm-web.github.io/datj-test/company-families.html
+END:VEVENT
+BEGIN:VEVENT
+UID:cal-aud-signup@danceandallthatjazz.com
+DTSTAMP:20261125T200051Z
+DTSTART;VALUE=DATE:20270115
+DTEND;VALUE=DATE:20270116
+TRANSP:TRANSPARENT
+SUMMARY:Company sign-up deadline: New Member Auditions
+LOCATION:Google Form
+DESCRIPTION:Studio calendar: https://leighagrimm-web.github.io/datj-test/fa
+ milies.html#calendar
+END:VEVENT
+BEGIN:VEVENT
+UID:cal-lutheran@danceandallthatjazz.com
+DTSTAMP:20261125T200051Z
+DTSTART;VALUE=DATE:20270117
+DTEND;VALUE=DATE:20270118
+TRANSP:TRANSPARENT
+SUMMARY:Lutheran Home Performance & studio party
+LOCATION:2:00 PM
+DESCRIPTION:Company families: details are in Company Central (Company passw
+ ord).\nhttps://leighagrimm-web.github.io/datj-test/company-families.html
+END:VEVENT
+BEGIN:VEVENT
+UID:cal-aud-new@danceandallthatjazz.com
+DTSTAMP:20261125T200051Z
+DTSTART;VALUE=DATE:20270117
+DTEND;VALUE=DATE:20270118
+TRANSP:TRANSPARENT
+SUMMARY:New Member Company Auditions
+LOCATION:At the studio
+DESCRIPTION:Studio calendar: https://leighagrimm-web.github.io/datj-test/fa
+ milies.html#calendar
+END:VEVENT
+BEGIN:VEVENT
+UID:cal-vip@danceandallthatjazz.com
+DTSTAMP:20261125T200051Z
+DTSTART;VALUE=DATE:20270312
+DTEND;VALUE=DATE:20270315
+TRANSP:TRANSPARENT
+SUMMARY:Competition: VIP (Elgin)
+LOCATION:Hemmens Cultural Center 
+DESCRIPTION:Company families: details are in Company Central (Company passw
+ ord).\nhttps://leighagrimm-web.github.io/datj-test/company-families.html
+END:VEVENT
+BEGIN:VEVENT
+UID:cal-photo@danceandallthatjazz.com
+DTSTAMP:20261125T200051Z
+DTSTART;VALUE=DATE:20270404
+DTEND;VALUE=DATE:20270405
+TRANSP:TRANSPARENT
+SUMMARY:Studio photo shoot
+LOCATION:At the studio
+DESCRIPTION:Company families: details are in Company Central (Company passw
+ ord).\nhttps://leighagrimm-web.github.io/datj-test/company-families.html
+END:VEVENT
+BEGIN:VEVENT
+UID:cal-hof@danceandallthatjazz.com
+DTSTAMP:20261125T200051Z
+DTSTART;VALUE=DATE:20270409
+DTEND;VALUE=DATE:20270412
+TRANSP:TRANSPARENT
+SUMMARY:Competition: Hall of Fame (Schaumburg)
+LOCATION:Renissance Schaumburg Convention Center Hotel
+DESCRIPTION:Company families: details are in Company Central (Company passw
+ ord).\nhttps://leighagrimm-web.github.io/datj-test/company-families.html
+END:VEVENT
+BEGIN:VEVENT
+UID:cal-wcte@danceandallthatjazz.com
+DTSTAMP:20261125T200051Z
+DTSTART;VALUE=DATE:20270416
+DTEND;VALUE=DATE:20270419
+TRANSP:TRANSPARENT
+SUMMARY:Competition: WCTE (Chicago)
+LOCATION:Chicago
+DESCRIPTION:Company families: details are in Company Central (Company passw
+ ord).\nhttps://leighagrimm-web.github.io/datj-test/company-families.html
+END:VEVENT
+BEGIN:VEVENT
+UID:cal-bts@danceandallthatjazz.com
+DTSTAMP:20261125T200051Z
+DTSTART;VALUE=DATE:20270423
+DTEND;VALUE=DATE:20270426
+TRANSP:TRANSPARENT
+SUMMARY:Competition: BTS (Milwaukee)
+LOCATION:The Oak Creek Performing Arts & Education Center
+DESCRIPTION:Company families: details are in Company Central (Company passw
+ ord).\nhttps://leighagrimm-web.github.io/datj-test/company-families.html
+END:VEVENT
+BEGIN:VEVENT
+UID:cal-soiree@danceandallthatjazz.com
+DTSTAMP:20261125T200051Z
+DTSTART;VALUE=DATE:20270502
+DTEND;VALUE=DATE:20270503
+TRANSP:TRANSPARENT
+SUMMARY:Company Soirée
+LOCATION:Chevy Chase Country Club
+DESCRIPTION:Company families: details are in Company Central (Company passw
+ ord).\nhttps://leighagrimm-web.github.io/datj-test/company-families.html
+END:VEVENT
+BEGIN:VEVENT
+UID:cal-aud-return@danceandallthatjazz.com
+DTSTAMP:20261125T200051Z
+DTSTART;VALUE=DATE:20270614
+DTEND;VALUE=DATE:20270619
+TRANSP:TRANSPARENT
+SUMMARY:Summer Intensives & Returning Company Member Auditions
+LOCATION:At the studio
+DESCRIPTION:Studio calendar: https://leighagrimm-web.github.io/datj-test/fa
+ milies.html#calendar
+END:VEVENT
+BEGIN:VEVENT
+UID:cal-disney@danceandallthatjazz.com
+DTSTAMP:20261125T200051Z
+DTSTART;VALUE=DATE:20271014
+DTEND;VALUE=DATE:20271018
+TRANSP:TRANSPARENT
+SUMMARY:Company trip: Walt Disney World
+LOCATION:Orlando\, FL
+DESCRIPTION:Company families: details are in Company Central (Company passw
+ ord).\nhttps://leighagrimm-web.github.io/datj-test/company-families.html
+END:VEVENT
+END:VCALENDAR

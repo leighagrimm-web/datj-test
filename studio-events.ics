@@ -1,0 +1,104 @@
+BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//Dance & All That Jazz//Calendar feed//EN
+CALSCALE:GREGORIAN
+METHOD:PUBLISH
+X-WR-CALNAME:D&ATJ · Events
+X-WR-TIMEZONE:America/Chicago
+REFRESH-INTERVAL;VALUE=DURATION:PT1H
+X-PUBLISHED-TTL:PT1H
+BEGIN:VTIMEZONE
+TZID:America/Chicago
+BEGIN:STANDARD
+DTSTART:19701101T020000
+RRULE:FREQ=YEARLY;BYMONTH=11;BYDAY=1SU
+TZOFFSETFROM:-0500
+TZOFFSETTO:-0600
+TZNAME:CST
+END:STANDARD
+BEGIN:DAYLIGHT
+DTSTART:19700308T020000
+RRULE:FREQ=YEARLY;BYMONTH=3;BYDAY=2SU
+TZOFFSETFROM:-0600
+TZOFFSETTO:-0500
+TZNAME:CDT
+END:DAYLIGHT
+END:VTIMEZONE
+BEGIN:VEVENT
+UID:cal-halloween@danceandallthatjazz.com
+DTSTAMP:20261125T200051Z
+DTSTART;VALUE=DATE:20261025
+DTEND;VALUE=DATE:20261026
+TRANSP:TRANSPARENT
+SUMMARY:Halloween Party (ages 4+)
+LOCATION:At the studio
+DESCRIPTION:Studio calendar: https://leighagrimm-web.github.io/datj-test/fa
+ milies.html#calendar
+END:VEVENT
+BEGIN:VEVENT
+UID:cal-food@danceandallthatjazz.com
+DTSTAMP:20261125T200051Z
+DTSTART;VALUE=DATE:20261101
+DTEND;VALUE=DATE:20261120
+TRANSP:TRANSPARENT
+SUMMARY:Studio Food Drive
+LOCATION:Collection box in Studio A
+DESCRIPTION:Studio calendar: https://leighagrimm-web.github.io/datj-test/fa
+ milies.html#calendar
+END:VEVENT
+BEGIN:VEVENT
+UID:cal-popcorn@danceandallthatjazz.com
+DTSTAMP:20261125T200051Z
+DTSTART;VALUE=DATE:20261101
+DTEND;VALUE=DATE:20261123
+TRANSP:TRANSPARENT
+SUMMARY:Popcorn Fundraiser
+LOCATION:Online
+DESCRIPTION:Studio calendar: https://leighagrimm-web.github.io/datj-test/fa
+ milies.html#calendar
+END:VEVENT
+BEGIN:VEVENT
+UID:cal-wcb@danceandallthatjazz.com
+DTSTAMP:20261125T200051Z
+DTSTART;VALUE=DATE:20261114
+DTEND;VALUE=DATE:20261115
+TRANSP:TRANSPARENT
+SUMMARY:Windy City Bulls halftime performance (ages 7+)
+LOCATION:NOW Arena\, Hoffman Estates
+DESCRIPTION:Studio calendar: https://leighagrimm-web.github.io/datj-test/fa
+ milies.html#calendar
+END:VEVENT
+BEGIN:VEVENT
+UID:cal-obs@danceandallthatjazz.com
+DTSTAMP:20261125T200051Z
+DTSTART;VALUE=DATE:20261115
+DTEND;VALUE=DATE:20261122
+TRANSP:TRANSPARENT
+SUMMARY:Class Observation & Dance Family Appreciation Week
+LOCATION:At the studio
+DESCRIPTION:Studio calendar: https://leighagrimm-web.github.io/datj-test/fa
+ milies.html#calendar
+END:VEVENT
+BEGIN:VEVENT
+UID:cal-lou@danceandallthatjazz.com
+DTSTAMP:20261125T200051Z
+DTSTART;VALUE=DATE:20270203
+DTEND;VALUE=DATE:20270204
+TRANSP:TRANSPARENT
+SUMMARY:Lou Malnati’s Dining Fundraiser
+LOCATION:Lou Malnati’s
+DESCRIPTION:Studio calendar: https://leighagrimm-web.github.io/datj-test/fa
+ milies.html#calendar
+END:VEVENT
+BEGIN:VEVENT
+UID:cal-obs-mar@danceandallthatjazz.com
+DTSTAMP:20261125T200051Z
+DTSTART;VALUE=DATE:20270314
+DTEND;VALUE=DATE:20270321
+TRANSP:TRANSPARENT
+SUMMARY:Observation Week
+LOCATION:At the studio
+DESCRIPTION:Studio calendar: https://leighagrimm-web.github.io/datj-test/fa
+ milies.html#calendar
+END:VEVENT
+END:VCALENDAR
