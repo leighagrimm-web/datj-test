@@ -28,11 +28,16 @@ function feedGet_(p) {
   if (!row) return text_('This calendar link is turned off. Subscribe again from Company Central.');
   touch_(row);
   // Calendar apps check every hour or so; a finished calendar is kept 10 minutes, so a sheet edit shows up within 10
-  var cache = CacheService.getScriptCache(), hit = cache.get('ics:' + p.c);
+  // &s=1: the family asked for the studio's own dates too (closures, sessions, Annual Performance), so one calendar has everything
+  var plus = p.s === '1', key = 'ics:' + p.c + (plus ? ':s' : '');
+  var cache = CacheService.getScriptCache(), hit = cache.get(key);
   if (hit) return ics_(hit);
-  var src = feedSources_();
-  var ics = FEED.calendar(FEED.dancerName(row.q) + ' · D&ATJ Company', FEED.dancerEvents({ co: src.co, cal: src.cal, teams: src.teams, q: row.q, today: todayChicago_(), siteUrl: src.siteUrl }));
-  try { cache.put('ics:' + p.c, ics, FEED_CACHE_SECONDS); } catch (x) {} // too big to cache (very rare): built fresh next time
+  var src = feedSources_(), today = todayChicago_();
+  var events = FEED.dancerEvents({ co: src.co, cal: src.cal, teams: src.teams, q: row.q, today: today, siteUrl: src.siteUrl });
+  // Company dates are already in the dancer's calendar, so only the other types come from the studio calendar
+  if (plus) events = events.concat(FEED.studioEvents((src.cal || []).filter(function (e) { return e && e.type !== 'Company'; }), src.siteUrl, today));
+  var ics = FEED.calendar(FEED.dancerName(row.q) + ' · D&ATJ Company', events);
+  try { cache.put(key, ics, FEED_CACHE_SECONDS); } catch (x) {} // too big to cache (very rare): built fresh next time
   return ics_(ics);
 }
 

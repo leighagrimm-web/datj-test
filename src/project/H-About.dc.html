@@ -267,6 +267,7 @@ a{color:inherit;text-decoration:none}
       <div style="font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase; color: #007A80; margin-bottom: 8px; font-weight: 700;">↻ Subscribe · updates on its own</div>
       <h2 style="font-size: 36px; letter-spacing: -0.045em; line-height: 1.02; margin: 0 0 12px; font-weight: 800; overflow-wrap: anywhere;">{{subTitle}}</h2>
       <p style="font-size: 15px; line-height: 1.55; margin: 0 0 22px; color: #333333;">{{subLead}}</p>
+      <sc-if value="{{subIsD}}" hint-placeholder-val="{{ false }}"><button type="button" role="switch" aria-checked="{{subPlusOn}}" onClick="{{subPlusToggle}}" style="display: flex; gap: 12px; align-items: flex-start; width: 100%; text-align: left; margin: -8px 0 20px; padding: 14px; border: 1px solid #DDDDDD; background: #F7F7F7; font-family: inherit; font-size: 14px; line-height: 1.45; color: #111111; cursor: pointer;"><span style="{{subPlusBox}}">{{subPlusMark}}</span><span><b>Also add studio dates</b><span style="display: block; color: #555555; font-size: 13px;">Closures, session dates and the Annual Performance, so one calendar has everything. Skip it if you already subscribe to the studio calendar.</span></span></button></sc-if>
       <sc-if value="{{subReady}}" hint-placeholder-val="{{ true }}"><div style="display: grid; gap: 8px;"><sc-for list="{{subBtns}}" as="b" hint-placeholder-count="3"><a href="{{b.href}}" target="{{b.target}}" rel="noopener" style="{{b.style}}"><span style="display: block; font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase; font-weight: 700;">{{b.label}} {{b.arrow}}</span><span style="display: block; font-size: 12px; margin-top: 3px; opacity: 0.8;">{{b.sub}}</span></a></sc-for></div>
         <div style="margin-top: 16px; font-size: 10px; letter-spacing: 0.16em; text-transform: uppercase; font-weight: 700; color: #555555;">Other calendar app? Copy the link</div>
         <div style="display: flex; gap: 8px; margin-top: 6px;"><input readonly value="{{subUrl}}" onFocus="{{subSelect}}" aria-label="Calendar link" style="flex: 1; min-width: 0; padding: 11px 10px; border: 1px solid #BBBBBB; font: 12px Arial, sans-serif; color: #333333; background: #F7F7F7;"><button type="button" onClick="{{subCopy}}" style="flex: none; padding: 0 14px; border: 1px solid #111111; background: #111111; color: #FFFFFF; font-family: inherit; font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; font-weight: 700; cursor: pointer;">{{subCopyLabel}}</button></div></sc-if>
@@ -794,7 +795,7 @@ class Component extends DCLogic {
       ...(() => { const s = this.state.sub; if (!s) return { subOpen: false, subBtns: [], subHow: [] };
         const isD = s === 'dancer', nm = String(this.state.coQ || '').trim().replace(/\s+/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
         const sf = !isD && SUBF[this.state.calF];
-        const https = isD ? (this.state.subCode ? (this.state.feedUrl || SUB.FEED_URL) + '?c=' + this.state.subCode : '') : SUB.base() + 'studio' + (sf ? sf[0] : '') + '.ics';
+        const https = isD ? (this.state.subCode ? (this.state.feedUrl || SUB.FEED_URL) + '?c=' + this.state.subCode + (this.state.subPlus ? '&s=1' : '') : '') : SUB.base() + 'studio' + (sf ? sf[0] : '') + '.ics';
         const calName = isD ? nm + ' · D&ATJ Company' : sf ? 'D&ATJ · ' + sf[1] : 'Dance & All That Jazz';
         const L = https ? SUB.links(https, calName) : null;
         const B = L ? [
@@ -810,6 +811,9 @@ class Component extends DCLogic {
           .concat(DEV.and ? ['On Android, subscriptions are added in Google Calendar on the web. Use the same Google account as your phone; it then appears in the Calendar app.'] : [])
           .concat(['To stop it, delete the calendar in your calendar app.']);
         return { subOpen: true, subClose: () => this.setState({ sub: null, subErr: '', subCopied: false }),
+          subIsD: isD, subPlusOn: this.state.subPlus ? 'true' : 'false', subPlusMark: this.state.subPlus ? '✓' : '',
+          subPlusBox: 'flex: none; width: 22px; height: 22px; display: inline-flex; align-items: center; justify-content: center; border: 2px solid #111111; font-weight: 800; background: ' + (this.state.subPlus ? '#111111; color: #FFFFFF;' : '#FFFFFF;'),
+          subPlusToggle: () => this.setState({ subPlus: !this.state.subPlus, subCopied: false }),
           subTitle: isD ? (nm ? nm + '’s Company calendar' : 'Your dancer’s Company calendar') : 'Studio calendar' + (sf ? ': ' + sf[1] : ''),
           subLead: isD ? 'Their rehearsals, every Company date (competitions, convention, performances), their competition times once schedules are posted (arrival, on stage, awards), and due dates. It keeps itself up to date.' : (sf ? sf[2] + ' Pick Everything on the calendar to subscribe to every date.' : 'Every studio date: closures, events, session dates and the Annual Performance.') + ' It keeps itself up to date.',
           subReady: !!L, subBtns: btns, subUrl: https, subCopyLabel: this.state.subCopied ? 'Copied ✓︎' : 'Copy link',
