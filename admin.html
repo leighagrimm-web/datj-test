@@ -536,7 +536,7 @@
     try { sealed = await sealChanged(); } catch (e) { busy(false); return notice('<b>Not published.</b> Couldn’t get the locked details ready: ' + esc(e && e.message || e) + ' Check the connection and try again.'); }
     if (sealed.ask.length) { busy(false); return askPw(sealed.ask, force, sealed.wrong); }
     const base = read(DRAFT_BASE);
-    const res = await api('publish', { content: draft, baseVersion: base == null ? serverVer : base, force: !!force, enc: sealed.enc, newLocks: sealed.newLocks });
+    const res = await api('publish', { content: draft, baseVersion: base == null ? serverVer : base, force: !!force, enc: sealed.enc, newLocks: sealed.newLocks, feedUrl: ENV.api });
     busy(false);
     if (res.code === 'needpw') {
       // The server sees a locked file this page thought was unchanged: lock it again and try once more, asking only if that fails
@@ -570,7 +570,8 @@
   const SEALED = { company: { file: 'company.enc.json', ls: 'datj-co-pw', name: 'Company password', what: 'Company Central and “Company families only” dates' },
     recital: { file: 'recital.enc.json', ls: 'datj-fam-pw', name: 'Families password', what: 'Annual Performance “More details”' } };
   // Filled from the server on load (Script Properties, owner only), so Brittany never has to type them.
-  const sealForce = new Set();   // locked files the server asked for on the last try
+  const sealForce = new Set();
+  let feedKeyServer = '', coSynced = false;   // the dancer calendar key from the server; the Company file checked this visit   // locked files the server asked for on the last try
   const pwMem = { company: '', recital: '' }, pwServer = { company: '', recital: '' };
   // A new season's password waits here (this device only) until Publish re-locks the file with it.
   const pwNext = (() => { try { return Object.assign({ company: '', recital: '' }, JSON.parse(localStorage.getItem('datj-pw-next') || '{}')); } catch (e) { return { company: '', recital: '' }; } })();
@@ -624,6 +625,7 @@
     out.locked = Object.assign({}, old.locked || {});
     draft.calendar.forEach(e => { if (e.lock && (tr(e.iBody) || tr(e.iWhen) || tr(e.iWhere))) out.locked[e.id] = textToInfo(e.iBody, e.iWhen, e.iWhere); });
     out.hiddenCal = hiddenCal(draft);
+    if (feedKeyServer) out.feedKey = feedKeyServer;   // Company Central proves it's unlocked with this when a family subscribes
     return out;
   }
   async function sealChanged() {
@@ -632,9 +634,11 @@
       let cur = null;
       if (!sealForce.has(which) && !pwNext[which] && privKey(which, draft) === privKey(which, live)) {
         // Nothing private changed, but a Company file from before "Only on Company Central" dates moved into it gets them now
-        if (which !== 'company' || !hiddenCal(draft).length) continue;
+        // and the dancer calendar key too (checked once per visit)
+        if (which !== 'company' || coSynced || (!hiddenCal(draft).length && !feedKeyServer)) continue;
         try { cur = await openCurrent(which); } catch (e) { cur = null; }
-        if (!cur || JSON.stringify((cur.data || {}).hiddenCal || []) === JSON.stringify(hiddenCal(draft))) continue;
+        const cd = (cur && cur.data) || {};
+        if (!cur || (JSON.stringify(cd.hiddenCal || []) === JSON.stringify(hiddenCal(draft)) && (!feedKeyServer || cd.feedKey === feedKeyServer))) { if (cur) coSynced = true; continue; }
       }
       if (!cur) cur = await openCurrent(which);
       // Changed on another device since this page loaded: get the password the server has now and try again
@@ -691,6 +695,7 @@
     if (!res.ok) { if (res.code === 'signin') { pass = ''; try { sessionStorage.removeItem(PASS); } catch (e) {} return gate(res.error); } $('main').innerHTML = '<div class="gate"><h1>Couldn’t load the admin</h1><p>' + esc(res.error) + '</p><button type="button" class="btn primary" data-reboot="1">Try again</button></div>'; return; }
     document.body.classList.remove('gated'); $('signout').hidden = false;
     useServer(res.content, res.version, res.publishedAt); useLocks(res.locks);
+    feedKeyServer = res.feedKey || '';
     who.email = res.email || ''; who.owner = !!res.owner; who.ownerEmail = res.ownerEmail || ''; helpers = res.helpers || [];
     $('signout').title = 'Signed in as ' + who.email;
     const saved = read(DRAFT); draft = saved ? pick(saved) : clone(live);

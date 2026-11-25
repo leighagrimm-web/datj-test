@@ -424,12 +424,12 @@ class Component extends DCLogic {
   async subDancer() {
     const q = String(this.state.coQ || '').trim().toLowerCase().replace(/\s+/g, ' ');
     this.setState({ sub: 'dancer', subErr: '', subCode: '', subCopied: false, subBusy: false });
-    const co = this.state.co; if (!q || !SUB.FEED_URL || !co || !co.feedKey) return;
+    const co = this.state.co; if (!q || !(this.state.feedUrl || SUB.FEED_URL) || !co || !co.feedKey) return;
     let code = ''; try { code = window.localStorage.getItem('datj-sub|' + q) || ''; } catch (e) {}
     if (code) { this.setState({ subCode: code }); return; }
     this.setState({ subBusy: true });
     try {
-      const r = await fetch(SUB.FEED_URL, { method: 'POST', body: JSON.stringify({ action: 'subscribe', q: q, proof: await SUB.proof(co.feedKey, q) }) });
+      const r = await fetch(this.state.feedUrl || SUB.FEED_URL, { method: 'POST', body: JSON.stringify({ action: 'subscribe', q: q, proof: await SUB.proof(co.feedKey, q) }) });
       const j = await r.json();
       if (j && j.ok && j.code) { try { window.localStorage.setItem('datj-sub|' + q, j.code); } catch (e) {} this.setState({ subCode: j.code, subBusy: false }); }
       else this.setState({ subErr: (j && j.error) || 'Couldn’t make the link. Try again in a minute.', subBusy: false });
@@ -460,7 +460,7 @@ class Component extends DCLogic {
   // Several copies of the site share one browser origin (github.io), so admin drafts are kept per copy. Same rule as admin.html.
   ns() { try { const b = location.pathname.replace(/[^/]*$/, ''); return b === '/datj-concept/' ? '' : '@' + b; } catch (e) { return ''; } }
   // The state that comes from published content (content.json, written by the admin's Publish).
-  savedState(sv) { const RC = this.RC; return { recital: !!sv.recital, season: sv.season || null, ownTrial: !!sv.ownTrial, staff: sv.staff || null, staffV: sv.staffV || 0, nav: sv.nav || null, prices: sv.prices || null, home: sv.home || null, photos: sv.photos || null, calendar: (sv.calendar && sv.calendar.some(e => e.id)) ? sv.calendar : null, policies: sv.policies || null, teachOv: sv.teachers || null, coEdit: sv.coEdit || null, featured: sv.featured || null, lists: sv.lists || null, texts: sv.texts || null, banner: sv.banner || { text: '', href: '' },
+  savedState(sv) { const RC = this.RC; return { feedUrl: (sv._published && sv._published.feed) || '', recital: !!sv.recital, season: sv.season || null, ownTrial: !!sv.ownTrial, staff: sv.staff || null, staffV: sv.staffV || 0, nav: sv.nav || null, prices: sv.prices || null, home: sv.home || null, photos: sv.photos || null, calendar: (sv.calendar && sv.calendar.some(e => e.id)) ? sv.calendar : null, policies: sv.policies || null, teachOv: sv.teachers || null, coEdit: sv.coEdit || null, featured: sv.featured || null, lists: sv.lists || null, texts: sv.texts || null, banner: sv.banner || { text: '', href: '' },
     rc: (sv.rc || RC).map((r, i) => Object.assign({ more: '' }, RC[i] ? { more: RC[i].more, lockMore: RC[i].lockMore } : {}, r)).map(r => { const n = RC.find(x => x.t === r.t); return n && /^Placeholder: (date, time and venue address|date and what to bring)./.test(r.d || '') ? Object.assign({}, n) : r; }) }; }
   // Published content: content.json next to the page (written by the admin's Publish). The last copy is kept in this
   // browser so the next visit paints with it straight away. No content.json (the prototype) = keep the browser-only saves.
@@ -802,7 +802,7 @@ class Component extends DCLogic {
       // ---- event details panel (calendar) ----
       ...(() => { const s = this.state.sub; if (!s) return { subOpen: false, subBtns: [], subHow: [] };
         const isD = s === 'dancer', nm = String(this.state.coQ || '').trim().replace(/\s+/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-        const https = isD ? (this.state.subCode ? SUB.FEED_URL + '?c=' + this.state.subCode : '') : SUB.base() + 'studio.ics';
+        const https = isD ? (this.state.subCode ? (this.state.feedUrl || SUB.FEED_URL) + '?c=' + this.state.subCode : '') : SUB.base() + 'studio.ics';
         const calName = isD ? nm + ' · D&ATJ Company' : 'Dance & All That Jazz';
         const L = https ? SUB.links(https, calName) : null;
         const B = L ? [

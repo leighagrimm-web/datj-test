@@ -68,6 +68,24 @@ the meantime, the admin fetches the current one from the server (`action: "locks
 bundle as `hiddenCal`, where the dancer calendar feed reads them. The first Publish after this change adds them to a
 Company file made before it.
 
+### Dancer calendar feed (private)
+
+Company Central → Find your dancer → Subscribe gives a family a link to their dancer's own calendar: rehearsals,
+competition arrival / on-stage / awards times, "Only on Company Central" dates and due dates. It's served by the admin's
+**public** deployment (`apps-script/admin/Feed.gs`, `…/exec?c=CODE`), using the shared calendar code
+(`apps-script/calendar-feed.gs`, copied in as `FeedCore.gs` by the deploy). It reads:
+
+- the latest published version on the History tab (competitions, due dates, Company-only dates and their details,
+  team rosters), so no readable copy of Company data is needed anywhere else;
+- the two Google Sheets linked on the admin's Company Central screen (Company Calendar: Rehearsals, No rehearsals;
+  Competition: Competitions, Routines, Groups and one tab per competition), live. They must be Google Sheets (not
+  .xlsx files in Drive) that the script's Google account can open. A blank cell keeps what the admin already has.
+
+`FEED_KEY` is made on its own the first time the admin loads; Publish puts it in the locked Company file (Company
+Central proves it's unlocked with it) and puts the feed's address in `content.json` (`_published.feed`). Links are
+saved on the **Calendar links** tab; untick Active to turn one off. Needs the read-only Sheets permission: after the
+first deploy with it, run any function in the editor once and allow it, or the admin stops working until you do.
+
 ### Studio calendar feed
 
 `studio.ics` (Subscribe to the studio calendar) is rebuilt by `.github/workflows/studio-calendar.yml` from the

@@ -96,6 +96,8 @@ function checkGitHub() {
 // owner in the public deployment, so helpers never need access to the Sheet, Drive or GitHub.
 // The URL holds no return address: the pass only ever goes to ADMIN_PAGE_URL.
 function doGet(e) {
+  // A dancer calendar link (public deployment): see Feed.gs
+  if (e && e.parameter && e.parameter.c) return feedGet_(e.parameter);
   var me = String(Session.getActiveUser().getEmail() || '').toLowerCase();
   if (!me) return text_('Sign in with a Google account to open the studio admin.');
   if (!allowed_(me)) return text_('The Google account ' + me + ' isn’t on the studio admin’s list. Ask the studio owner to add it under Admin access, then open this link again.');
@@ -112,6 +114,8 @@ function doGet(e) {
 function doPost(e) {
   var req;
   try { req = JSON.parse((e && e.postData && e.postData.contents) || '{}'); } catch (err) { return json_({ ok: false, error: 'That request couldn’t be read.' }); }
+  // Company Central asking for a dancer calendar link: no admin pass, it proves the Company password instead (Feed.gs)
+  if (req.action === 'subscribe') { try { return json_(feedSubscribe_(req)); } catch (err) { console.error('subscribe', err); return json_({ ok: false, error: 'Couldn’t make the link. Try again in a minute.' }); } }
   var who = checkPass_(req.pass);
   if (!who.ok) return json_({ ok: false, code: 'signin', error: who.error });
   try {
@@ -187,7 +191,7 @@ function load_(who) {
   var last = lastVersion_();
   return { ok: true, email: who.email, owner: who.owner, ownerEmail: ownerEmail_(), helpers: who.owner ? helpers_() : null,
     env: prop_('ENVIRONMENT') || 'TEST', version: last ? last.version : 0,
-    publishedAt: last ? last.at : '', by: last ? last.by : '', content: last ? last.content : null, locks: locks_() };
+    publishedAt: last ? last.at : '', by: last ? last.by : '', content: last ? last.content : null, locks: locks_(), feedKey: feedKey_() };
 }
 
 // The Company and Families passwords, kept here so Brittany's admin can re-lock details without typing them.
@@ -248,7 +252,9 @@ function publish_(email, req) {
 
     var version = latest + 1;
     var at = new Date();
-    var pub = publicPart_(full, version, at);
+    // The admin sends this backend's own public address; it becomes the dancer calendar address on the site
+    var feed = /^https:\/\/script\.google\.com\/macros\/s\/[\w-]{20,}\/exec$/.test(String(req.feedUrl || '')) ? req.feedUrl : '';
+    var pub = publicPart_(full, version, at, feed);
     var pubText = JSON.stringify(pub);
     if (pubText.length > MAX_PUBLIC_BYTES) return { ok: false, error: 'The website part is too big to publish (' + Math.round(pubText.length / 1024) + ' KB).' };
 
@@ -273,6 +279,7 @@ function publish_(email, req) {
     var nPhotos = Object.keys(photos.files).length;
     var label = 'Updated' + (nPhotos ? ' + ' + nPhotos + ' photo' + (nPhotos > 1 ? 's' : '') : '') + (Object.keys(enc).length ? ' + locked files' : '');
     sh.getRange(row, 6).setValue(site.url ? '=HYPERLINK("' + site.url + '","' + label + '")' : label);
+    try { CacheService.getScriptCache().removeAll(['src0', 'src1', 'src2', 'src3']); } catch (x) {}   // dancer calendars use the new version
     Object.keys(newPw).forEach(function (k) { PropertiesService.getScriptProperties().setProperty(LOCK_PROPS[k], newPw[k]); });
     return { ok: true, version: version, publishedAt: at.toISOString(), changed: changed, content: full, locks: locks_() };
   } finally {
@@ -326,8 +333,9 @@ function changedSections_(a, b) {
 // ---------------------------------------------------------------- public and private parts
 
 // What goes into content.json. Never trusts the page to have left the private parts out.
-function publicPart_(full, version, at) {
+function publicPart_(full, version, at, feed) {
   var pub = { _published: { version: version, at: at.toISOString() } };
+  if (feed) pub._published.feed = feed;   // where Company Central asks for dancer calendar links
   PUBLIC_KEYS.forEach(function (k) { if (k in full) pub[k] = full[k]; });
   // "Only on Company Central" dates leave content.json entirely; they're in the Company bundle (hiddenCal)
   if (pub.calendar) pub.calendar = pub.calendar.filter(function (e) { return !(e && e.hidden); }).map(function (e) {

@@ -1,35 +1,14 @@
 /**
- * Dance & All That Jazz: calendar subscribe feeds
+ * Dance & All That Jazz: calendar feed code (shared)
  *
- * Two feeds:
- *  1. Studio calendar (public): every public date on the studio calendar.
- *     Built into studio.ics by the website build (scripts/make-studio-ics.js uses the same code below),
- *     so it needs no Apps Script at all.
- *  2. A dancer's Company calendar (private), read straight from Brittany's sheets: an edit shows up within 10 minutes: their rehearsals, their competition times
- *     (arrival / on stage / awards), Company-only dates and payment due dates.
- *     Served by this Apps Script web app: https://script.google.com/.../exec?c=CODE
+ *  1. Studio calendar (public): every public date on the studio calendar. Built into studio.ics by
+ *     scripts/make-studio-ics.js (the website build and .github/workflows/studio-calendar.yml), so it needs no server.
+ *  2. A dancer's Company calendar (private): their rehearsals, their competition times (arrival / on stage / awards),
+ *     Company-only dates and payment due dates. Served by the admin's Apps Script (apps-script/admin/Feed.gs), which
+ *     loads this file as FeedCore.gs when it's deployed.
  *
- * How a family gets their dancer link:
- *  Company Central (after the Company password) → Find your dancer → Subscribe.
- *  The page sends the dancer search ("Bella M") plus a proof that it knows the feed key
- *  (the key lives inside the encrypted Company bundle, so only families with the password have it).
- *  This script saves a random code for that search on the "Calendar links" tab and returns it.
- *  The link holds only the code, never the dancer's name.
- *
- * Turning off a link that got shared: on the "Calendar links" tab, untick Active (or delete the row).
- * The family subscribes again from Company Central to get a new code.
- *
- * Setup (one time, from Brittany's Google account):
- *  1. In the sign-ups spreadsheet: Extensions > Apps Script > add a file, paste this file.
- *  2. Project Settings > Script properties:
- *       FEED_KEY     the same feed key that is inside the Company bundle (Leigha sets both)
- *       COMPANY_SHEET     (fallback) id of the Company Calendar sheet; normally the link saved in the admin is used
- *       COMPETITION_SHEET (fallback) id of the Competition sheet; normally the admin's season sheet link is used
- *       COMPANY_FILE Drive file id of the published Company Central data (due dates, Company-only details)
- *       CONTENT_URL  https://<site>/content.json (studio calendar + team rosters)
- *       SITE_URL     https://<site>/
- *  3. Deploy > New deployment > Web app. Execute as: Me. Who has access: Anyone.
- *  4. Put the Web app URL in the website (FEED_URL).
+ * This file is only the calendar-making code: no Google services, so the website build and the tests
+ * (apps-script/test-feeds.js) run it in Node too.
  */
 
 var FEED = (function () {
@@ -293,112 +272,6 @@ var FEED = (function () {
   return { calendar: calendar, studioEvents: studioEvents, dancerEvents: dancerEvents, dancerName: dancerName, query: query, span: span, timeIn: timeIn, readCompany: readCompany, readComps: readComps, isoDate: isoDate };
 })();
 
-// ================= Apps Script web app (runs in Brittany's Google account) =================
-var LINKS_TAB = 'Calendar links';
-
-function doGet(e) {
-  var p = (e && e.parameter) || {};
-  if (p.feed === 'studio') return ics_(FEED.calendar('Dance & All That Jazz', FEED.studioEvents(content_().calendar, prop_('SITE_URL'), todayChicago_())));
-  var row = findCode_(p.c);
-  if (!row) return ContentService.createTextOutput('This calendar link is turned off. Subscribe again from Company Central.').setMimeType(ContentService.MimeType.TEXT);
-  touch_(row);
-  // Calendar apps check every hour or so; the finished calendar is kept 10 minutes, so a sheet edit shows up within 10 minutes
-  var cache = CacheService.getScriptCache(), hit = cache.get('ics:' + p.c);
-  if (hit) return ics_(hit);
-  var src = sources_();
-  var ics = FEED.calendar(FEED.dancerName(row.q) + ' · D&ATJ Company', FEED.dancerEvents({ co: src.co, cal: src.cal, teams: src.teams, q: row.q, today: todayChicago_(), siteUrl: prop_('SITE_URL') }));
-  try { cache.put('ics:' + p.c, ics, 600); } catch (x) {} // too big to cache (very rare): just built fresh next time
-  return ics_(ics);
-}
-
-// Everything a dancer calendar needs, read straight from Brittany's sheets (one read shared by all links for 10 minutes).
-// Rehearsals + days off: Company Calendar sheet. Competitions + groups: Competition sheet.
-// Company-only dates, due dates and team rosters: the published site content.
-function sources_() {
-  var lock = LockService.getScriptLock(); lock.waitLock(25000);
-  try {
-    var cache = CacheService.getScriptCache(), keys = ['src0', 'src1', 'src2', 'src3'], got = cache.getAll(keys);
-    if (got.src0) { var txt = keys.map(function (k) { return got[k] || ''; }).join(''); try { return JSON.parse(txt); } catch (x) {} }
-    var tabsOf = function (id) { var ss = SpreadsheetApp.openById(id); return function (name) {
-      var sh = ss.getSheetByName(name) || ss.getSheets().filter(function (x) { return x.getName().toLowerCase().replace(/[^a-z0-9]/g, '') === String(name).toLowerCase().replace(/[^a-z0-9]/g, ''); })[0];
-      return sh ? sh.getDataRange().getDisplayValues() : []; }; };
-    var c = content_(), co = JSON.parse(JSON.stringify(company_()));
-    // Which sheets: the links saved in the admin (Company Central screen), so a new season's sheet is picked up on its own
-    var idOf = function (u) { var m = /\/d\/([a-zA-Z0-9_-]{20,})/.exec(String(u || '')); return m ? m[1] : ''; };
-    var cal = FEED.readCompany(tabsOf(idOf(co.sheet) || prop_('COMPANY_SHEET')));
-    co.rehearsals = cal.rehearsals; co.off = cal.off;
-    var comps = FEED.readComps(tabsOf(idOf(co.compSheet) || prop_('COMPETITION_SHEET')));
-    if (comps.length) co.comps = comps.map(function (x) { var old = (co.comps || []).filter(function (o) { return o.id === x.id; })[0] || {}; return Object.assign({}, old, x); });
-    var out = { co: { rehearsals: co.rehearsals, off: co.off, comps: co.comps, due: co.due, locked: co.locked }, cal: c.calendar, teams: (c.lists || {}).teams || [] };
-    var s = JSON.stringify(out), parts = {}; // the cache holds 100 KB per entry: split it
-    for (var i = 0; i < keys.length; i++) parts[keys[i]] = s.slice(i * 95000, (i + 1) * 95000);
-    if (s.length <= 95000 * keys.length) { try { cache.putAll(parts, 600); } catch (x) {} }
-    return out;
-  } finally { lock.releaseLock(); }
-}
-
-// Company Central asks for a link: { action: 'subscribe', q: 'bella m', proof: HMAC-SHA256(FEED_KEY, q) as hex }
-function doPost(e) {
-  var data = {}; try { data = JSON.parse((e && e.postData && e.postData.contents) || '{}'); } catch (x) {}
-  if (data.action !== 'subscribe') return json_({ ok: false });
-  var q = normQ_(data.q);
-  if (!q || q.length > 80) return json_({ ok: false, error: 'Type your dancer’s name first.' });
-  if (String(data.proof || '') !== hmacHex_(q)) return json_({ ok: false, error: 'Unlock Company Central again, then try once more.' });
-  var lock = LockService.getScriptLock(); lock.waitLock(20000);
-  try {
-    var sh = linksSheet_(), vals = sh.getDataRange().getValues();
-    for (var i = 1; i < vals.length; i++) if (vals[i][1] === q && vals[i][5] === true) return json_({ ok: true, code: vals[i][0] });
-    var code = Utilities.getUuid().replace(/-/g, '').slice(0, 20);
-    sh.appendRow([code, q, new Date(), '', 0, true]);
-    return json_({ ok: true, code: code });
-  } finally { lock.releaseLock(); }
-}
-
-function normQ_(q) { return String(q || '').trim().toLowerCase().replace(/\s+/g, ' '); }
-function hmacHex_(q) {
-  return Utilities.computeHmacSha256Signature(q, prop_('FEED_KEY')).map(function (b) { return ('0' + (b & 255).toString(16)).slice(-2); }).join('');
-}
-function linksSheet_() {
-  var ss = SpreadsheetApp.getActive(), sh = ss.getSheetByName(LINKS_TAB);
-  if (!sh) { sh = ss.insertSheet(LINKS_TAB); sh.appendRow(['Code', 'Dancer search', 'Created', 'Last checked by a calendar app', 'Hours with a check', 'Active']); sh.setFrozenRows(1); }
-  return sh;
-}
-function findCode_(code) {
-  if (!code || !/^[a-f0-9]{20}$/.test(code)) return null;
-  var cache = CacheService.getScriptCache(), hit = cache.get('code:' + code);
-  if (hit) return JSON.parse(hit);
-  var sh = linksSheet_(), vals = sh.getDataRange().getValues();
-  for (var i = 1; i < vals.length; i++) if (vals[i][0] === code) {
-    if (vals[i][5] !== true) return null;
-    var row = { r: i + 1, q: vals[i][1] }; cache.put('code:' + code, JSON.stringify(row), 300); return row;
-  }
-  return null;
-}
-function touch_(row) {
-  try {
-    var cache = CacheService.getScriptCache(), k = 'seen:' + row.r; if (cache.get(k)) return; cache.put(k, '1', 3600);
-    var sh = linksSheet_(); sh.getRange(row.r, 4).setValue(new Date()); var n = sh.getRange(row.r, 5); n.setValue((+n.getValue() || 0) + 1);
-  } catch (e) {}
-}
-function content_() {
-  var cache = CacheService.getScriptCache(), hit = cache.get('content');
-  if (hit) return JSON.parse(hit);
-  var j = JSON.parse(UrlFetchApp.fetch(prop_('CONTENT_URL')).getContentText());
-  try { cache.put('content', JSON.stringify(j), 600); } catch (e) {}
-  return j;
-}
-function company_() {
-  var cache = CacheService.getScriptCache(), hit = cache.get('company');
-  if (hit) return JSON.parse(hit);
-  var j = JSON.parse(DriveApp.getFileById(prop_('COMPANY_FILE')).getBlob().getDataAsString());
-  try { cache.put('company', JSON.stringify(j), 600); } catch (e) {}
-  return j;
-}
-function todayChicago_() { return Utilities.formatDate(new Date(), 'America/Chicago', 'yyyy-MM-dd'); }
-var PROPS_ = null; // one Properties read per request (daily limit is 50,000)
-function prop_(k) { if (!PROPS_) PROPS_ = PropertiesService.getScriptProperties().getProperties(); return PROPS_[k] || ''; }
-function ics_(s) { return ContentService.createTextOutput(s).setMimeType(ContentService.MimeType.ICAL); }
-function json_(o) { return ContentService.createTextOutput(JSON.stringify(o)).setMimeType(ContentService.MimeType.JSON); }
 
 // Node (website build + tests) can load the feed code too
 if (typeof module !== 'undefined') module.exports = FEED;

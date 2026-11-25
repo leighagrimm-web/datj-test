@@ -36,6 +36,8 @@ if (!t.scriptId) { console.error('No scriptId for ' + env + ' in apps-script/adm
 
 const stage = fs.mkdtempSync(path.join(os.tmpdir(), 'datj-deploy-'));
 fs.readdirSync(SRC).filter((f) => /\.(gs|html)$/.test(f)).forEach((f) => fs.copyFileSync(path.join(SRC, f), path.join(stage, f)));
+// The shared calendar code (also used by the website build) goes in as FeedCore.gs; Feed.gs serves the dancer feeds
+fs.copyFileSync(path.join(SRC, '..', 'calendar-feed.gs'), path.join(stage, 'FeedCore.gs'));
 fs.writeFileSync(path.join(stage, '.clasp.json'), JSON.stringify({ scriptId: t.scriptId, rootDir: '.' }));
 const manifest = JSON.parse(fs.readFileSync(path.join(SRC, 'appsscript.json'), 'utf8'));
 
