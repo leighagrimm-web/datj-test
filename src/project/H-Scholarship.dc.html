@@ -824,19 +824,23 @@ class Component extends DCLogic {
         const k = this.state.coK || 'all';
         const nameHit = (r) => !qs.length || hitQ(r.what);
         const groupHit = (r) => qs.length && (r.kind === 'Large group' || r.kind === 'Hip Hop Company' || r.kind === 'Dress rehearsal' || r.kind === 'Windy City Bulls' || r.kind === 'Performance');
-        const R = co.rehearsals.filter(r => (k === 'all' || r.kind === k) && (nameHit(r) || (k === 'all' && groupHit(r))) && (this.state.coAll || r.date >= todayISO));
+        // Who is in each group dance: team rosters + the Company sheet's Groups tab. A searched dancer sees a group rehearsal only if
+        // they are in it (a group nobody listed yet still shows, so nothing goes missing).
+        const isShow = (r) => r.kind === 'Performance' || r.kind === 'Windy City Bulls';
+        const GG = {}; ((this.state.lists || {}).teams || CONTENT0.lists.teams).forEach(t => { const n = (t.dancers || []).map(d => d.t).filter(Boolean); if (n.length) GG[(t.t + ' company').toLowerCase()] = n; });
+        (co.comps || []).forEach(c => Object.keys(c.groups || {}).forEach(g => { if ((c.groups[g] || []).length) GG[g.toLowerCase()] = c.groups[g]; }));
+        Object.keys(co.groups || {}).forEach(g => { if ((co.groups[g] || []).length) GG[g.toLowerCase()] = co.groups[g]; });
+        const TT = ((this.state.lists || {}).teams || CONTENT0.lists.teams); const onTeam = (t) => (t.dancers || []).some(d => hitQ(d.t));
+        const inIt = (r) => { if (!qs.length || nameHit(r)) return true; if (r.kind === 'Dress rehearsal' || isShow(r)) { const named = TT.filter(t => new RegExp('\\b' + t.t + '\\b', 'i').test(r.what || '')); return !named.length || named.some(onTeam); } const g = GG[String(r.what || '').replace(/\s*\(.*\)$/, '').trim().toLowerCase()]; return g ? g.some(n => hitQ(n)) : true; };
+        const isGrp = (r) => !!GG[String(r.what || '').replace(/\s*\(.*\)$/, '').trim().toLowerCase()];
+        const R = co.rehearsals.filter(r => (k === 'all' || r.kind === k) && (nameHit(r) || ((groupHit(r) || isGrp(r)) && inIt(r))) && (this.state.coAll || r.date >= todayISO));
         const by = {}; R.forEach(r => { (by[r.date] = by[r.date] || []).push(r); });
         const offBy = {}; (co.off || []).forEach(o => offBy[o.date] = o.who);
         let dates = Object.keys(by).sort(); const total = dates.length; const limit = this.state.coAll || qs.length ? dates.length : 6; dates = dates.slice(0, limit);
-        const row = (r) => ({ time: String(r.time || '').replace(/\s*[–-]\s*/g, '\u2060–\u2060'), what: r.what, where: [r.room || 'Studio TBA', r.teacher].filter(Boolean).join(' · '), whereA: r.room || 'Studio TBA', whereB: r.teacher || '', hasWhereB: !!r.teacher, dot: 'display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 8px; vertical-align: 1px; background: ' + (TC[r.teacher] || '#BBBBBB') + ';', mine: qs.length && nameHit(r) ? 'background: #EAF7F7;' : '', isGroup: groupHit(r) && !nameHit(r), add: () => ICS.download([rehEv(r)], r.what + ' ' + r.date) });
-        const isShow = (r) => r.kind === 'Performance' || r.kind === 'Windy City Bulls';
+        const row = (r) => ({ time: String(r.time || '').replace(/\s*[–-]\s*/g, '\u2060–\u2060'), what: r.what, where: [r.room || 'Studio TBA', r.teacher].filter(Boolean).join(' · '), whereA: r.room || 'Studio TBA', whereB: r.teacher || '', hasWhereB: !!r.teacher, dot: 'display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 8px; vertical-align: 1px; background: ' + (TC[r.teacher] || '#BBBBBB') + ';', mine: qs.length && nameHit(r) ? 'background: #EAF7F7;' : '', isGroup: qs.length > 0 && !nameHit(r), add: () => ICS.download([rehEv(r)], r.what + ' ' + r.date) });
         const rehEv = (r) => { const sp = ICS.span(r.time); return { uid: 'reh-' + r.date + '-' + String(r.time).replace(/\W/g, '') + '-' + String(r.what).replace(/\W/g, '').slice(0, 24), date: r.date, t0: sp && sp[0], t1: sp && sp[1],
           title: (isShow(r) || /rehearsal/i.test(r.what) ? '' : 'Rehearsal: ') + r.what, where: isShow(r) ? (r.room || '') : ICS.STUDIO + (r.room ? ' (' + r.room + ')' : ''), desc: [r.room, r.teacher].filter(Boolean).join(' · ') + (sp ? '' : (r.time ? '\n' + r.time : '')) + '\nCompany Central: ' + ICS.cc() }; };
         const dancerName = (this.state.coQ || '').trim().replace(/\b\w/g, c => c.toUpperCase());
-        const GG = {}; ((this.state.lists || {}).teams || CONTENT0.lists.teams).forEach(t => { const n = (t.dancers || []).map(d => d.t).filter(Boolean); if (n.length) GG[(t.t + ' company').toLowerCase()] = n; });
-          (co.comps || []).forEach(c => Object.keys(c.groups || {}).forEach(g => { if ((c.groups[g] || []).length) GG[g.toLowerCase()] = c.groups[g]; }));
-          const TT = ((this.state.lists || {}).teams || CONTENT0.lists.teams); const onTeam = (t) => (t.dancers || []).some(d => hitQ(d.t));
-          const inIt = (r) => { if (!qs.length || nameHit(r)) return true; if (r.kind === 'Dress rehearsal' || isShow(r)) { const named = TT.filter(t => new RegExp('\\b' + t.t + '\\b', 'i').test(r.what || '')); return !named.length || named.some(onTeam); } const g = GG[String(r.what || '').replace(/\s*\(.*\)$/, '').trim().toLowerCase()]; return g ? g.some(n => hitQ(n)) : true; };
         const coAddAll = () => { const comps = CALSRC.filter(e => (/^Competition:/.test(e.title || '') || /convention/i.test(e.title || '')) && (e.end || e.start) >= todayISO)
             .map(e => ({ uid: 'cal-' + e.id, date: e.start, end: e.end, title: e.title, where: e.where || '', desc: 'Schedule and costume list: ' + ICS.cc() + '#competitions' }));
           // Only the group rehearsals this dancer is in (team rosters + the competition workbook's Groups tab); unknown groups stay in
@@ -881,7 +885,7 @@ class Component extends DCLogic {
         const SEASON_END = co.seasonEnd || '2027-07-31';
         const evs = CALSRC.filter(e => e.type === 'Company' || e.lock || e.type === 'Recital');
         const next7 = plus(7), next14 = plus(14);
-        const nx = co.rehearsals.filter(r => r.date >= todayISO && r.date <= next7 && (nameHit(r) || groupHit(r))).map(r => ({ when: dayName(r.date) + ' · ' + r.time, what: r.what, sub: [r.room, r.teacher].filter(Boolean).join(' · '), tag: 'Rehearsal', open: null }))
+        const nx = co.rehearsals.filter(r => r.date >= todayISO && r.date <= next7 && (nameHit(r) || ((groupHit(r) || isGrp(r)) && inIt(r)))).map(r => ({ when: dayName(r.date) + ' · ' + r.time, what: r.what, sub: [r.room, r.teacher].filter(Boolean).join(' · '), tag: 'Rehearsal', open: null }))
           .concat(CALSRC.filter(e => !e.hidden && (e.end || e.start) >= todayISO && e.start <= next14).map(e => ({ when: fmtRange(e.start, e.end), what: e.title, sub: e.where || '', tag: e.type === 'Company' ? 'Company' : 'Studio', open: () => this.setState({ ev: e.id }) })));
         return {
           coUpdated: co.updated || '',
