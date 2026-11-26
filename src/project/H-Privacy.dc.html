@@ -442,6 +442,8 @@ class Component extends DCLogic {
     // Any link to "#trial" (banner, cards) opens the free trial form
     const trialHash = () => { const sm = /^#signup-(\d+)$/.exec(location.hash); if (sm) { try { history.replaceState(null, '', location.pathname + location.search); } catch (e) {} this.setState({ su: +sm[1], trial: false }); return; } if (location.hash === '#trial') { try { history.replaceState(null, '', location.pathname + location.search); } catch (e) {} this.setState({ trial: true, ownForm: false, sent: false, tTried: false }); } };
     window.addEventListener('hashchange', trialHash); setTimeout(trialHash, 0);
+    // A link like classes.html?ages=tots,pre#schedule opens the schedule with those age chips picked (e.g. the homepage's Little Movers card)
+    { const am = /[?&]ages=([a-z,]+)/.exec(location.search || ''); if (am) { const ok = ['tots', 'pre', 'kids', 'tween', 'teen', 'adult']; const pick = am[1].split(',').filter(k => ok.includes(k)); if (pick.length) this.setState({ ages: pick }); } }
     const saved = () => this.state.savedClasses || (window.DATJ_CLASSES && window.DATJ_CLASSES.classes) || [];
     fetch('classes.json', { cache: 'no-cache' }).then(r => r.ok ? r.json() : null).then(j => { let use = (j && j.classes && j.classes.length) ? j : null; try { const x = JSON.parse(window.localStorage.getItem('datj-classes-refresh') || 'null'); if (x && x.classes && x.classes.length && (!use || String(x.updated) > String(use.updated))) use = x; } catch (e) {} if (use) this.setState({ savedClasses: use.classes, classesAt: use.updated }); }).catch(() => {})
       .then(() => window.StudioPro ? window.StudioPro.fetchClasses(fetch.bind(window)) : null)
@@ -595,7 +597,8 @@ class Component extends DCLogic {
     const linkTo = (h) => { h = String(h || '').trim(); if (!h) return '#'; if (/^(https?:|mailto:|tel:)/.test(h)) return h; if (h === 'trial') return '#trial';
       const old = /^(?:H-(\w+)\.dc|HomeH\.dc|(\w+))\.html(#[\w-]+)?$/.exec(h); if (old) h = (old[1] ? old[1].toLowerCase() : !old[2] || old[2] === 'index' ? 'home' : old[2]) + (old[3] || '');
       if (/^families#company(-families)?$/.test(h)) h = 'companyhub';
-      const m = /^(\w+)(#[\w-]+)?$/.exec(h); return m && PAGEF[m[1]] ? PAGEF[m[1]] + (m[2] || '') : h; };
+      // "classes?ages=tots,pre#schedule" = the schedule with those age chips picked
+      const m = /^(\w+)(\?ages=[a-z,]+)?(#[\w-]+)?$/.exec(h); return m && PAGEF[m[1]] ? PAGEF[m[1]] + (m[2] || '') + (m[3] || '') : h; };
     const NAMES = { classes: 'Classes', pricing: 'Pricing', company: 'Company', about: 'About', families: 'Current Families', shop: 'Gift Cards & Shop' };
     const NAV0 = [['classes', 1], ['pricing', 1], ['company', 1], ['about', 1], ['families', 1], ['shop', 0]].map(x => ({ id: x[0], header: !!x[1] }));
     const navList = (this.state.nav && this.state.nav.length ? this.state.nav : NAV0).filter(n => NAMES[n.id]);
@@ -717,12 +720,12 @@ class Component extends DCLogic {
     const goTeam = (i) => { this.setState({ team: (i + 6) % 6 }); if (this._timer) { clearInterval(this._timer); this._timer = setInterval(() => { if ((this.state.panel ?? -1) < 0 && !this.state.dp && !this.state.ev) this.setState({ team: ((this.state.team || 0) + 1) % 6 }); }, 10000); } };
     return {
       programs: (() => { const P0 = [
-        { num: '01 / FOUNDATIONS', title: 'Little Movers', sub: 'Ages 18 months – 5 · rhythm, coordination & joy', photo: 'Photo: Tiny Tots class', href: 'H-Classes.dc.html#schedule', cta: 'See classes', more: 'Placeholder: what little ones do in class|- Tiny Tots: 18 months – 3, with a grown-up nearby|- Preschool combos: ages 3–5|- 40-minute classes, first one free' },
+        { num: '01 / FOUNDATIONS', title: 'Little Movers', sub: 'Ages 18 months – 5 · rhythm, coordination & joy', photo: 'Photo: Tiny Tots class', href: 'H-Classes.dc.html?ages=tots,pre#schedule', cta: 'See classes', more: 'Placeholder: what little ones do in class|- Tiny Tots: 18 months – 3, with a grown-up nearby|- Preschool combos: ages 3–5|- 40-minute classes, first one free' },
         { num: '02 / TECHNIQUE', title: 'Dance Styles', sub: 'Ballet, jazz, tap, hip hop, breaking, acro & more', photo: 'Photo: jazz class', href: 'H-Classes.dc.html#styles', cta: 'See styles', more: 'Placeholder: how levels work|- Ballet, jazz, tap, hip hop, breaking, acro, contemporary, musical theater|- Levels I–III by age and experience|- Ages 6 through adult' },
         { num: '03 / COMPETE', title: 'Company', sub: 'Six competitive teams for dancers ready to go further', photo: 'Video: company on stage', href: 'H-Company.dc.html', cta: 'Meet the teams', more: 'Placeholder: what Company involves|- Six teams by age and level|- Auditions: when they happen|- Competitions and conventions each season' }
       ]; const ed = HOME.programs && HOME.programs.length ? HOME.programs : P0;
         return ed.map((x, i) => { const p = P0[i] || { num: String(i + 1).padStart(2, '0'), photo: 'Photo', href: 'H-Classes.dc.html', more: '' }; const e = Object.assign({}, x || {}); Object.keys(e).forEach(k => { if (e[k] === '' || e[k] == null) delete e[k]; });
-          const q = Object.assign({}, p, e); q.href = e.link ? linkTo(e.link) : p.href; q.more = lines(q.more).indexOf('|') >= 0 || !/\|/.test(q.more || '') ? lines(q.more) : q.more; q.photoImg = isPic(q.photo); q.photoPh = !q.photoImg; return q; }); })(),
+          const q = Object.assign({}, p, e); q.href = e.link ? linkTo(q.title === 'Little Movers' && e.link === 'classes#schedule' ? 'classes?ages=tots,pre#schedule' : e.link) : p.href; q.more = lines(q.more).indexOf('|') >= 0 || !/\|/.test(q.more || '') ? lines(q.more) : q.more; q.photoImg = isPic(q.photo); q.photoPh = !q.photoImg; return q; }); })(),
       ageBtns: [['tots','18 mo–3'],['pre','3–5'],['kids','6–8'],['tween','9–12'],['teen','Teen'],['adult','Adult']].map(x => ({ label: x[1], on: x[0] === a ? 'true' : 'false', pick: () => this.setState({ age: x[0], fitAll: false }),
         style: 'min-height: 48px; border: 1px solid ' + (x[0] === a ? '#111111' : '#CCCCCC') + '; background: ' + (x[0] === a ? '#111111' : '#FFFFFF') + '; color: ' + (x[0] === a ? '#FFFFFF' : '#111111') + '; font-family: inherit; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; font-weight: 700; cursor: pointer;' })),
       // Find the right fit: one row per style showing the class a new dancer starts in (e.g. anyone new to tap starts in Tap Basics),
