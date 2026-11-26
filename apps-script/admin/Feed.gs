@@ -121,6 +121,8 @@ function readCompanySheet_(ce) {
   if (fresh.length) comps = fresh.map(function (x) {
     var old = comps.filter(function (o) { return o.id === x.id; })[0] || {}, o = Object.assign({}, old);
     Object.keys(x).forEach(function (k) { if (x[k] !== '' && x[k] != null) o[k] = x[k]; });
+    // Final in either place wins: Brittany may flip it in the admin or in the sheet's Status column
+    if (/final/i.test(old.status || '') || /final/i.test(x.status || '')) o.status = 'Final';
     return o;
   });
   return { ok: !errors.length || cal.rehearsals.length > 0, rehearsals: cal.rehearsals, off: cal.off, comps: comps,

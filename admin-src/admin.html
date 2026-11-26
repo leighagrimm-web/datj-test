@@ -823,6 +823,7 @@
     render();
   }
   let dspBusy = false, dspMsg = '', dspStep = '';
+  let sessDel = -1; // which session's “Remove session” is waiting for a yes
   async function dspRefreshNow() {
     if (dspBusy) return; dspBusy = true; dspMsg = ''; dspStep = ''; render();
     try {
@@ -1229,7 +1230,7 @@
               return render(); }
             draft.coEdit.wbRows = draft.coEdit.wbRows || {}; draft.coEdit.wbRows[c.id] = col(crow, 'tab') || col(crow, 'competition');
             const out = parseWorkbook(wb, crow); if (out.error) { compMsg = out.error; return render(); }
-            Object.assign(c, { lipstick: col(crow, 'lipstick') || c.lipstick || '', venue: col(crow, 'venue') || c.venue, address: col(crow, 'address') || c.address, dates: col(crow, 'dates') || c.dates, status: col(crow, 'status') || c.status || 'Preliminary', days: out.days, groups: out.groups, sample: '', notes: col(crow, 'notes') ? [col(crow, 'notes')] : [], arrival: out.arrival.length ? out.arrival : c.arrival,
+            Object.assign(c, { lipstick: col(crow, 'lipstick') || c.lipstick || '', venue: col(crow, 'venue') || c.venue, address: col(crow, 'address') || c.address, dates: col(crow, 'dates') || c.dates, status: (/final/i.test(col(crow, 'status')) || /final/i.test(c.status || '')) ? 'Final' : 'Preliminary', days: out.days, groups: out.groups, sample: '', notes: col(crow, 'notes') ? [col(crow, 'notes')] : [], arrival: out.arrival.length ? out.arrival : c.arrival,
               links: [['Prop transportation sign-up', col(crow, 'prop')], ['Competition rules', col(crow, 'rules')], ['Livestream', col(crow, 'livestream')], ['Hair video (newbies)', col(crow, 'hair video')], ['Makeup pictures', col(crow, 'makeup')]].map(x => ({ label: x[0], url: x[1] })) });
             if (!draft.coEdit.comps.includes(c)) draft.coEdit.comps.push(c);
             const n = out.days.reduce((k, d) => k + d.rows.filter(r => !r.awards).length, 0);
@@ -1560,9 +1561,9 @@
       + '<label style="flex: 1; min-width: 120px; font-size: 12px; font-weight: 700;">Name<input type="text" data-sn="' + i + '" value="' + esc(x.name) + '" maxlength="24" style="display: block; width: 100%; margin-top: 4px; padding: 10px; border: 1px solid #C9CDCB; font-weight: 400;"></label>'
       + '<label style="flex: 1.3; min-width: 150px; font-size: 12px; font-weight: 700;">Dates<input type="text" data-sd="' + i + '" value="' + esc(x.dates) + '" maxlength="60" placeholder="e.g. Jan 6 – Mar 9" style="display: block; width: 100%; margin-top: 4px; padding: 10px; border: 1px solid #C9CDCB; font-weight: 400;"></label>'
       + '<label style="font-size: 12px; font-weight: 700;">Class weeks<input type="text" inputmode="numeric" data-sw="' + i + '" value="' + esc(x.weeks) + '" style="display: block; width: 70px; margin-top: 4px; padding: 10px; border: 1px solid #C9CDCB; font-weight: 400;"></label>'
-      + '<label style="font-size: 12px; font-weight: 700;">Show on the site from<input type="date" data-sl="' + i + '" value="' + esc(x.liveFrom) + '" style="display: block; margin-top: 4px; padding: 9px; border: 1px solid #C9CDCB; font-weight: 400; background: #FFFFFF;"></label>'
+      + '<label style="font-size: 12px; font-weight: 700;">Switch the site to it on<input type="date" data-sl="' + i + '" value="' + esc(x.liveFrom) + '" style="display: block; margin-top: 4px; padding: 9px; border: 1px solid #C9CDCB; font-weight: 400; background: #FFFFFF;"></label>'
       + (i === ci ? '<span class="tag" style="background: #EAF7F7; color: #00575B; align-self: center;">Showing now</span>' : '')
-      + (P.sessions.length > 1 ? '<button type="button" class="mini" data-sx="' + i + '" aria-label="Remove ' + esc(x.name) + '">×</button>' : '') + '</div>').join('');
+      + (P.sessions.length > 1 ? '<div style="flex-basis: 100%; display: flex; justify-content: flex-end; gap: 8px; align-items: center;">' + (sessDel === i ? '<span style="font-size: 13px;">Remove ' + esc(x.name) + '?</span><button type="button" class="btn primary" data-sx="' + i + '">Yes, remove</button><button type="button" class="btn ghost" data-sxno="1">Cancel</button>' : '<button type="button" class="btn ghost" data-sxask="' + i + '" style="font-size: 12px; padding: 6px 12px;">Remove session</button>') + '</div>' : '') + '</div>').join('');
     const rates = '<div class="tiers">' + Object.keys(P.rates).map(Number).sort((a, b) => a - b).map(k => '<div class="tier"><b>' + k + '-minute classes</b><div class="money"><span>$</span><input inputmode="decimal" data-rate="' + k + '" value="' + esc(P.rates[k]) + '" aria-label="Weekly rate for ' + k + '-minute classes"><span style="padding-right: 10px;">/wk</span></div><div class="hint">' + esc(cs.name) + ': <b>' + (cs.weeks ? '$' + forWeeks(P.rates[k], cs.weeks) : '—') + '</b></div></div>').join('') + '</div>';
     const specials = P.specials.map((x, i) => '<div class="navrow"><b>' + esc(x.label) + '</b><div class="money" style="max-width: 150px;"><span>$</span><input inputmode="decimal" data-sp="' + i + '" value="' + esc(x.rate) + '" aria-label="Weekly rate for ' + esc(x.label) + '"><span style="padding-right: 10px;">/wk</span></div><span class="hint" style="margin: 0; min-width: 110px;">' + (+x.rate ? esc(cs.name) + ': $' + forWeeks(x.rate, cs.weeks) : 'Included') + '</span></div>').join('');
     const rows = regular().filter(c => !priceQ || (c.name + ' ' + c.day + ' ' + (teachOf(c) || '')).toLowerCase().includes(priceQ.toLowerCase())).map(c => {
@@ -1572,8 +1573,8 @@
         + (has ? '<button type="button" class="btn ghost" data-reset="' + esc(c.key) + '" style="min-height: 30px; font-size: 10px;">Undo</button>' : '') + '</td><td><b>' + (w === 0 ? 'Included' : cs.weeks ? '$' + forWeeks(w, cs.weeks) : '—') + '</b></td></tr>';
     }).join('');
     return '<h1>Sessions &amp; prices</h1><p class="lede">Set up the season once: each session’s dates and number of class weeks, and your weekly rates. The site works out every class price (weekly rate × weeks).</p>'
-      + '<div class="panel"><h2>Sessions this season</h2><p class="lede" style="margin-bottom: 14px;">Count only the weeks with classes (skip holiday weeks). On each session’s <b>“Show on the site from”</b> date, the website switches to that session’s prices and marks it “Now enrolling.” The <b>Dates</b> (first class – last class, like “Jan 6 – Mar 9”) also set how far “＋ Calendar” adds each class; studio closures from the calendar are skipped.</p>'
-      + '<div class="note" style="margin-bottom: 12px;">' + esc(curSess().name) + ' is showing now.' + (nx ? ' ' + esc(nx.name) + ' takes over on ' + esc(fmtRange(nx.liveFrom)) + '.' : ' Add a “Show on the site from” date to the next session so it switches on its own.') + '</div><div class="list">' + sess + '</div><button type="button" class="btn" id="sAddS" style="margin-top: 12px;">+ Add a session</button></div>'
+      + '<div class="panel"><h2>Sessions this season</h2><p class="lede" style="margin-bottom: 14px;">Count only the weeks with classes (skip holiday weeks). <b>Dates</b> are when the classes run (first class – last class, like “Jan 6 – Mar 9”): families see them on the Pricing page, and “＋ Calendar” adds each class through that range, skipping studio closures. <b>Switch the site to it on</b> is the day the website moves to that session (its prices, dates and “Now enrolling”), usually when enrollment opens. Families never see that date.</p>'
+      + '<div class="note" style="margin-bottom: 12px;">' + esc(curSess().name) + ' is showing now.' + (nx ? ' ' + esc(nx.name) + ' takes over on ' + esc(fmtRange(nx.liveFrom)) + '.' : ' Give the next session a “Switch the site to it on” date so the website moves to it on its own.') + '</div><div class="list">' + sess + '</div><button type="button" class="btn" id="sAddS" style="margin-top: 12px;">+ Add a session</button></div>'
       + '<div class="panel" style="margin-top: 18px;"><h2>Weekly rates by class length</h2><p class="lede" style="margin-bottom: 14px;">From Studio Pro (Session 2 fees ÷ 9 weeks).</p>' + rates + '</div>'
       + '<div class="panel" style="margin-top: 18px;"><h2>Special weekly rates</h2><p class="lede" style="margin-bottom: 14px;">Classes that don’t follow the length rate. Put 0 for a class that’s included with another.</p><div class="list">' + specials + '</div></div>'
       + '<h2 style="margin-top: 30px;">Every class</h2><p class="lede" style="margin-bottom: 12px;">Type a different weekly rate to give one class its own price.</p>'
@@ -1729,7 +1730,9 @@
     if (t.id === 'discardTop' || t.id === 'discardBar') return discard();
     if (d.nup !== undefined || d.ndown !== undefined) { const i = +(d.nup !== undefined ? d.nup : d.ndown), j = d.nup !== undefined ? i - 1 : i + 1; const a = draft.nav; [a[i], a[j]] = [a[j], a[i]]; saveDraft(); render(); return; }
     if (d.reset !== undefined) { delete draft.prices.byKey[d.reset]; saveDraft(); render(); return; }
-    if (d.sx !== undefined) { const P = draft.prices, i = +d.sx; P.sessions.splice(i, 1); if (P.current >= P.sessions.length) P.current = P.sessions.length - 1; else if (P.current > i) P.current--; saveDraft(); render(); return; }
+    if (d.sxask !== undefined) { sessDel = +d.sxask; render(); return; }
+    if (d.sxno) { sessDel = -1; render(); return; }
+    if (d.sx !== undefined) { sessDel = -1; const P = draft.prices, i = +d.sx; P.sessions.splice(i, 1); if (P.current >= P.sessions.length) P.current = P.sessions.length - 1; else if (P.current > i) P.current--; saveDraft(); render(); return; }
     if (t.id === 'sAddS') { const P = draft.prices; P.sessions.push({ name: 'Session ' + (P.sessions.length + 1), dates: '', weeks: '' }); saveDraft(); render(); return; }
     if (d.slotx !== undefined) { const k = d.slotx; if (/^prog/.test(k)) draft.home.programs[+k.slice(4)].photo = ''; else delete draft.photos[k]; saveDraft(); render(); return; }
     if (t.id === 'pPhotoX') { draft.home.programs[openItem].photo = ''; saveDraft(); render(); return; }
