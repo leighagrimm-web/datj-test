@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Schedule Filters</title>
+<style>
+  /* Three compact filter layouts for the full schedule, switchable at the top. Styled like the live site. */
+  :root { --ink: #111111; --mut: #555555; --line: #DDDDDD; --teal: #00ADB5; --teal-ink: #00838A; --paper: #FFFFFF; --soft: #F2F2F2; --bar-off: #D5D9D8; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--paper); color: var(--ink); font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; }
+  .wrap { max-width: 1120px; margin: 0 auto; padding: 0 16px 80px; }
+  .switch { position: sticky; top: 0; z-index: 20; background: #0A0A0A; color: #FFFFFF; padding: 10px 16px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .switch span { font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; color: #AEB8B3; margin-right: 4px; }
+  .switch button { min-height: 36px; padding: 0 12px; border: 1px solid #555; background: transparent; color: #FFFFFF; font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; }
+  .switch button[aria-pressed="true"] { background: var(--teal); color: #000; border-color: var(--teal); }
+  .eyebrow { font-size: 10px; letter-spacing: 0.24em; text-transform: uppercase; color: var(--teal-ink); margin: 28px 0 12px; }
+  h1 { font-size: clamp(36px, 7vw, 64px); letter-spacing: -0.06em; line-height: 0.95; margin: 0 0 8px; }
+  h1 em { font-family: Georgia, serif; font-weight: 400; }
+  .why { color: var(--mut); font-size: 14px; margin: 0 0 18px; max-width: 62ch; line-height: 1.5; }
+  .lbl { font-size: 9px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--mut); margin: 12px 0 7px; }
+  .chips { display: flex; gap: 6px; flex-wrap: wrap; }
+  .chip { min-height: 40px; padding: 0 14px; border: 1px solid #CCCCCC; background: var(--paper); color: var(--ink); font: inherit; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; font-weight: 700; cursor: pointer; white-space: nowrap; flex: 0 0 auto; }
+  .chip[aria-pressed="true"] { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+  button:focus-visible { outline: 3px solid var(--teal); outline-offset: 2px; }
+  /* level tiles (legend + filter) */
+  .legend { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 6px; }
+  .lv { display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; align-items: center; text-align: left; padding: 9px 12px; border: 1px solid #CCCCCC; background: var(--paper); color: var(--ink); font: inherit; cursor: pointer; min-height: 50px; }
+  .lv b { font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; }
+  .lv .who { grid-column: 2; font-size: 11.5px; color: var(--mut); line-height: 1.3; }
+  .lv .bars { grid-row: 1 / span 2; }
+  .lv[aria-pressed="true"] { border-color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); background: #F7FBFB; }
+  .bars { display: inline-flex; align-items: flex-end; gap: 2px; height: 16px; vertical-align: -2px; }
+  .bars i { width: 4px; background: var(--bar-off); border-radius: 1px; }
+  .bars i.on { background: var(--teal); }
+  .bars.flat i { height: 4px !important; background: var(--ink); opacity: 0.55; }
+  .hint { font-size: 12.5px; color: var(--mut); margin: 8px 0 0; }
+  .link { border: 0; background: none; padding: 0; font: inherit; color: var(--teal-ink); text-decoration: underline; cursor: pointer; }
+
+  /* A: one Filters bar + panel (bottom sheet on phones) */
+  .fbar { display: flex; gap: 10px; align-items: center; padding: 10px 0; border-top: 1px solid var(--ink); border-bottom: 1px solid var(--line); position: sticky; top: 56px; background: var(--paper); z-index: 5; }
+  .fbtn { min-height: 44px; padding: 0 16px; border: 1px solid var(--ink); background: var(--ink); color: var(--paper); font: inherit; font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; font-weight: 700; cursor: pointer; display: inline-flex; gap: 8px; align-items: center; flex: 0 0 auto; }
+  .fbtn .n { background: var(--teal); color: #000; border-radius: 10px; min-width: 20px; height: 20px; display: inline-flex; align-items: center; justify-content: center; font-size: 11px; letter-spacing: 0; }
+  .fsum { font-size: 13px; color: var(--mut); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
+  .fclear { flex: 0 0 auto; }
+  .panel { border-bottom: 1px solid var(--line); padding: 4px 0 16px; }
+  .sheet-bg { position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 40; }
+  .sheet { position: fixed; left: 0; right: 0; bottom: 0; max-height: 86vh; overflow: auto; background: var(--paper); z-index: 41; padding: 6px 16px 16px; border-radius: 12px 12px 0 0; }
+  .sheet .grab { width: 40px; height: 4px; background: #CCC; border-radius: 2px; margin: 6px auto 4px; }
+  .sheet .done { position: sticky; bottom: 0; background: var(--paper); padding-top: 12px; display: flex; gap: 8px; }
+  .sheet .done button { flex: 1; min-height: 48px; font: inherit; font-weight: 700; font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase; cursor: pointer; }
+  .primary { background: var(--ink); color: var(--paper); border: 1px solid var(--ink); }
+  .ghost { background: var(--paper); color: var(--ink); border: 1px solid #CCCCCC; }
+
+  /* B: dropdown pills */
+  .pills { display: flex; gap: 6px; flex-wrap: wrap; padding: 10px 0; border-top: 1px solid var(--ink); border-bottom: 1px solid var(--line); position: relative; }
+  .pill { min-height: 42px; padding: 0 12px; border: 1px solid #CCCCCC; background: var(--paper); color: var(--ink); font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; display: inline-flex; gap: 6px; align-items: center; max-width: 100%; }
+  .pill.set { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+  .pill .car { font-size: 10px; opacity: 0.7; }
+  .pop { position: absolute; left: 0; right: 0; top: 100%; z-index: 10; background: var(--paper); border: 1px solid var(--ink); padding: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.15); }
+  @media (min-width: 701px) { .pop { right: auto; min-width: 360px; max-width: 640px; } }
+
+  /* C: one-line swipe rows */
+  .swipe { display: grid; grid-template-columns: 54px minmax(0, 1fr); align-items: center; gap: 8px; padding: 6px 0; }
+  .swipe .k { font-size: 9px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--mut); }
+  .swipe .chips { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; padding-bottom: 2px; mask-image: linear-gradient(90deg, #000 88%, transparent); }
+  .swipe .chips::-webkit-scrollbar { display: none; }
+  .chip.lvc { display: inline-flex; gap: 7px; align-items: center; }
+  .cbox { border-top: 1px solid var(--ink); border-bottom: 1px solid var(--line); padding: 6px 0 8px; }
+  .explain { background: var(--soft); padding: 12px 14px; margin-top: 6px; }
+  .explain dl { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 6px 12px; font-size: 13px; }
+  .explain dt { font-weight: 700; display: flex; gap: 8px; align-items: center; }
+  .explain dd { margin: 0; color: var(--mut); }
+
+  /* schedule */
+  .count { font-size: 13px; color: var(--mut); margin: 14px 0 0; }
+  .row { display: grid; grid-template-columns: 130px minmax(0, 1.6fr) 80px minmax(0, 1fr) 110px; gap: 20px; align-items: center; padding: 15px 0; border-bottom: 1px solid var(--line); font-size: 15px; }
+  .row.head { font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; color: #444; border-bottom: 1px solid var(--ink); padding: 14px 0 10px; }
+  .row .when { font-weight: 700; }
+  .row .nm { display: inline-flex; align-items: center; gap: 9px; flex-wrap: wrap; }
+  .row .sub { display: block; font-size: 11px; color: var(--mut); margin-top: 3px; }
+  .showM { display: none; }
+  .empty { padding: 24px 0; color: var(--mut); font-size: 14px; }
+  @media (max-width: 700px) { .row { grid-template-columns: 86px minmax(0, 1fr) auto; gap: 12px; font-size: 14px; } .hideM { display: none; } .showM { display: inline; } }
+  @media (min-width: 701px) { .sheet-bg, .sheet { display: none; } }
+  @media (max-width: 700px) { .panel.inline { display: none; } }
+</style>
+</head>
+<body>
+<div class="switch" role="group" aria-label="Filter layout"><span>Filters</span>
+  <button type="button" data-opt="A">A · Filters button</button><button type="button" data-opt="B">B · Dropdown pills</button><button type="button" data-opt="C">C · Swipe rows</button>
+</div>
+<div class="wrap">
+  <div class="eyebrow">Mockup · Classes page · Full schedule</div>
+  <h1>Full <em>schedule.</em></h1>
+  <p class="why" id="why"></p>
+  <div id="filters"></div>
+  <p class="count" id="count"></p>
+  <div class="row head"><span>Day &amp; time</span><span>Class</span><span class="hideM">Ages</span><span class="hideM">Teacher</span><span>Session 2 tuition</span></div>
+  <div id="rows"></div>
+</div>
+<div id="sheet"></div>
+<script>
+  const CLASSES = [{"n":"Ballet I/II","d":"Mon","t":"4:15","st":975,"lo":10,"hi":18,"m":55,"room":"Studio A","tc":"Katie"},{"n":"Jazz Hip Hop I","d":"Mon","t":"4:15","st":975,"lo":6,"hi":10,"m":40,"room":"Studio B","tc":"Meghan"},{"n":"Jazz Lyrical I/II","d":"Mon","t":"4:15","st":975,"lo":10,"hi":18,"m":55,"room":"Studio C","tc":"Kelly"},{"n":"Combo","d":"Mon","t":"5:00","st":1020,"lo":6,"hi":10,"m":55,"room":"Studio B","tc":"Meghan"},{"n":"Ballet II","d":"Mon","t":"5:15","st":1035,"lo":10,"hi":18,"m":55,"room":"Studio A","tc":"Katie"},{"n":"Tap I/II","d":"Mon","t":"5:15","st":1035,"lo":8,"hi":18,"m":40,"room":"Studio C","tc":"Kelly"},{"n":"Tap Basics","d":"Mon","t":"6:00","st":1080,"lo":5,"hi":18,"m":40,"room":"Studio C","tc":"Kelly"},{"n":"Modern/Contemporary I/II","d":"Mon","t":"6:15","st":1095,"lo":10,"hi":18,"m":55,"room":"Studio A","tc":"Katie"},{"n":"Tap III","d":"Mon","t":"6:45","st":1125,"lo":12,"hi":18,"m":40,"room":"Studio C","tc":"Kelly"},{"n":"Modern/Contemporary III","d":"Mon","t":"7:20","st":1160,"lo":14,"hi":18,"m":55,"room":"Studio A","tc":"Katie"},{"n":"Contemporary","d":"Mon","t":"7:30","st":1170,"lo":11,"hi":18,"m":55,"room":"Studio B","tc":"Meghan"},{"n":"Musical Theater II","d":"Mon","t":"7:30","st":1170,"lo":12,"hi":18,"m":55,"room":"Studio C","tc":"Kelly"},{"n":"Jazz Lyrical III","d":"Mon","t":"8:15","st":1215,"lo":14,"hi":18,"m":55,"room":"Studio A","tc":"Katie"},{"n":"Jazz Lyrical II","d":"Mon","t":"8:30","st":1230,"lo":12,"hi":18,"m":55,"room":"Studio C","tc":"Kelly"},{"n":"Leaps & Turns","d":"Mon","t":"8:30","st":1230,"lo":11,"hi":18,"m":40,"room":"Studio B","tc":"Meghan"},{"n":"Jazz Lyrical I","d":"Tue","t":"4:15","st":975,"lo":8,"hi":18,"m":55,"room":"Studio C","tc":"Katie"},{"n":"Tap I","d":"Tue","t":"4:15","st":975,"lo":6,"hi":18,"m":40,"room":"Studio A","tc":"Kelly"},{"n":"Intro to Breaking","d":"Tue","t":"4:30","st":990,"lo":6,"hi":18,"m":55,"room":"Studio B","tc":"The Breaking Program"},{"n":"Tiny Tap","d":"Tue","t":"5:00","st":1020,"lo":3,"hi":5,"m":40,"room":"Studio A","tc":"Kelly"},{"n":"Ballet I","d":"Tue","t":"5:15","st":1035,"lo":8,"hi":18,"m":55,"room":"Studio C","tc":"Katie"},{"n":"Breaking I & II (combined)","d":"Tue","t":"5:30","st":1050,"lo":9,"hi":18,"m":55,"room":"Studio B","tc":"The Breaking Program"},{"n":"Disney Dancing","d":"Tue","t":"5:45","st":1065,"lo":3,"hi":5,"m":40,"room":"Studio A","tc":"Kelly"},{"n":"Hip Hop I","d":"Tue","t":"6:30","st":1110,"lo":7,"hi":18,"m":40,"room":"Studio B","tc":"Daniel"},{"n":"Hip Hop II","d":"Tue","t":"7:15","st":1155,"lo":10,"hi":18,"m":55,"room":"Studio B","tc":"Daniel"},{"n":"Adult Jazz/Contemporary","d":"Tue","t":"7:45","st":1185,"lo":19,"hi":99,"m":55,"room":"Studio C","tc":"Katie"},{"n":"Adult Hip Hop","d":"Tue","t":"8:15","st":1215,"lo":19,"hi":99,"m":55,"room":"Studio B","tc":"Daniel"},{"n":"Ballet I","d":"Wed","t":"4:15","st":975,"lo":8,"hi":18,"m":55,"room":"Studio B","tc":"Meghan"},{"n":"Jazz Hip Hop I/II","d":"Wed","t":"4:15","st":975,"lo":9,"hi":18,"m":55,"room":"Studio A","tc":"Kelly"},{"n":"Modern/Contemporary I","d":"Wed","t":"4:15","st":975,"lo":8,"hi":18,"m":55,"room":"Studio C","tc":"Katie"},{"n":"Ballet I","d":"Wed","t":"5:15","st":1035,"lo":8,"hi":18,"m":55,"room":"Studio A","tc":"Kelly"},{"n":"Ballet III","d":"Wed","t":"5:15","st":1035,"lo":12,"hi":18,"m":55,"room":"Studio C","tc":"Katie"},{"n":"Jazz Lyrical I","d":"Wed","t":"5:15","st":1035,"lo":8,"hi":18,"m":55,"room":"Studio B","tc":"Meghan"},{"n":"Ballet I/II","d":"Wed","t":"6:15","st":1095,"lo":10,"hi":18,"m":55,"room":"Studio B","tc":"Meghan"},{"n":"Modern/Contemporary II","d":"Wed","t":"6:15","st":1095,"lo":12,"hi":18,"m":55,"room":"Studio C","tc":"Katie"},{"n":"Tap IV","d":"Wed","t":"6:30","st":1110,"lo":14,"hi":18,"m":40,"room":"Studio A","tc":"Kelly"},{"n":"Ballet IV","d":"Wed","t":"7:15","st":1155,"lo":14,"hi":18,"m":70,"room":"Studio C","tc":"Katie"},{"n":"Ballet V","d":"Wed","t":"7:15","st":1155,"lo":14,"hi":18,"m":70,"room":"Studio B","tc":"Dillon"},{"n":"Jazz II","d":"Wed","t":"7:15","st":1155,"lo":10,"hi":18,"m":55,"room":"Studio A","tc":"Kelly"},{"n":"Tap II","d":"Wed","t":"8:15","st":1215,"lo":10,"hi":18,"m":40,"room":"Studio A","tc":"Kelly"},{"n":"Adult Ballet","d":"Wed","t":"8:30","st":1230,"lo":19,"hi":99,"m":55,"room":"Studio B","tc":"Dillon"},{"n":"Acro II","d":"Thu","t":"4:15","st":975,"lo":12,"hi":18,"m":55,"room":"Studio C","tc":"Dillon"},{"n":"Musical Theater I","d":"Thu","t":"4:15","st":975,"lo":7,"hi":18,"m":55,"room":"Studio A","tc":"Kelly"},{"n":"Hip Hop Basics","d":"Thu","t":"4:45","st":1005,"lo":4,"hi":6,"m":40,"room":"Studio B","tc":"Meghan"},{"n":"Combo","d":"Thu","t":"5:15","st":1035,"lo":6,"hi":10,"m":55,"room":"Studio C","tc":"Dillon"},{"n":"Conditioning","d":"Thu","t":"5:15","st":1035,"lo":10,"hi":18,"m":55,"room":"Studio A","tc":"Kelly"},{"n":"Ballet Basics","d":"Thu","t":"5:30","st":1050,"lo":5,"hi":7,"m":40,"room":"Studio B","tc":"Meghan"},{"n":"Jazz Hip Hop I","d":"Thu","t":"6:15","st":1095,"lo":6,"hi":10,"m":40,"room":"Studio B","tc":"Meghan"},{"n":"Musical Theater I/II","d":"Thu","t":"6:15","st":1095,"lo":10,"hi":18,"m":55,"room":"Studio A","tc":"Kelly"},{"n":"Pointe I","d":"Thu","t":"6:15","st":1095,"lo":13,"hi":18,"m":70,"room":"Studio C","tc":"Dillon"},{"n":"Jazz Hip Hop I/II","d":"Thu","t":"7:00","st":1140,"lo":9,"hi":18,"m":55,"room":"Studio B","tc":"Meghan"},{"n":"Musical Theater III","d":"Thu","t":"7:30","st":1170,"lo":14,"hi":18,"m":55,"room":"Studio A","tc":"Kelly"},{"n":"Pre-Pointe","d":"Thu","t":"7:30","st":1170,"lo":12,"hi":18,"m":55,"room":"Studio C","tc":"Dillon"},{"n":"Pointe II","d":"Thu","t":"8:30","st":1230,"lo":14,"hi":18,"m":70,"room":"Studio C","tc":"Dillon"},{"n":"Acro Basics","d":"Fri","t":"4:15","st":975,"lo":4,"hi":6,"m":40,"room":"Studio C","tc":"Dillon"},{"n":"Disney Dancing","d":"Fri","t":"4:15","st":975,"lo":3,"hi":5,"m":40,"room":"Studio B","tc":"Lauren"},{"n":"Intro to Breaking","d":"Fri","t":"4:30","st":990,"lo":6,"hi":18,"m":55,"room":"Studio A","tc":"The Breaking Program"},{"n":"Acro I","d":"Fri","t":"5:00","st":1020,"lo":6,"hi":18,"m":55,"room":"Studio C","tc":"Dillon"},{"n":"Ballet Basics","d":"Fri","t":"5:00","st":1020,"lo":5,"hi":7,"m":40,"room":"Studio B","tc":"Lauren"},{"n":"Breaking I","d":"Fri","t":"5:30","st":1050,"lo":8,"hi":18,"m":55,"room":"Studio A","tc":"The Breaking Program"},{"n":"Combo","d":"Fri","t":"5:45","st":1065,"lo":6,"hi":10,"m":55,"room":"Studio B","tc":"Lauren"},{"n":"Acro I/II","d":"Fri","t":"6:00","st":1080,"lo":9,"hi":18,"m":55,"room":"Studio C","tc":"Dillon"},{"n":"Breaking II","d":"Fri","t":"6:30","st":1110,"lo":9,"hi":18,"m":55,"room":"Studio A","tc":"The Breaking Program"},{"n":"Tiny Tots","d":"Sat","t":"9:00","st":540,"lo":2,"hi":3,"m":40,"room":"Studio A","tc":"Meghan"},{"n":"Disney Dancing","d":"Sat","t":"9:45","st":585,"lo":3,"hi":5,"m":40,"room":"Studio A","tc":"Meghan"},{"n":"Hip Hop Basics","d":"Sat","t":"10:30","st":630,"lo":4,"hi":6,"m":40,"room":"Studio A","tc":"Meghan"},{"n":"Ballet Basics","d":"Sat","t":"11:15","st":675,"lo":5,"hi":7,"m":40,"room":"Studio A","tc":"Meghan"},{"n":"Bollywood Ages 11+","d":"Sun","t":"9:30","st":570,"lo":10,"hi":18,"m":55,"room":"Studio C","tc":"Akanksha"},{"n":"Bollywood Ages 7+","d":"Sun","t":"9:30","st":570,"lo":7,"hi":18,"m":55,"room":"Studio A","tc":"Akanksha"},{"n":"Bollywood Ages 4+","d":"Sun","t":"9:45","st":585,"lo":4,"hi":6,"m":40,"room":"Studio B","tc":"Shetal"}];
+  // Level wording comes from the admin (Brittany edits name + description); these are the defaults
+  const LV = [
+    { k: 'start', name: 'Starter', who: 'No experience needed', on: 1 },
+    { k: 'l1', name: 'Level 1', who: 'New, or up to a year', on: 2 },
+    { k: 'l12', name: 'Level 1–2', who: 'About a year', on: 3 },
+    { k: 'l2', name: 'Level 2', who: '1–2 years', on: 4 },
+    { k: 'adv', name: 'Advanced', who: 'Teacher placement', on: 5 },
+    { k: 'open', name: 'All levels', who: 'Any experience', on: 0 }
+  ];
+  const WHY = {
+    A: 'One bar with a Filters button and a one-line summary of what’s picked. Everything else stays tucked away: on a phone it slides up from the bottom, on a laptop it opens in place. Shortest page; one extra tap to change a filter.',
+    B: 'One row of three pills. Each opens a small menu, and shows its choice once picked (e.g. “Ages 6–8”). Familiar from shopping sites; the level meanings live inside the Level menu.',
+    C: 'Every filter stays visible but only one line tall: swipe sideways for more. The bars explain themselves in a small “What do the bars mean?” box. Nothing hidden, about a third of today’s height.'
+  };
+  const levelOf = (n) => { if (/pre-pointe/i.test(n)) return 'l2'; if (/\b(III|IV|V)\b|pointe/i.test(n)) return 'adv'; if (/\bI\s*(\/|&)\s*II\b/.test(n)) return 'l12'; if (/\bII\b/.test(n)) return 'l2'; if (/\bI\b/.test(n)) return 'l1'; if (/tiny|basics|intro|disney|tots|combo/i.test(n)) return 'start'; return 'open'; };
+  const L = (k) => LV.find(x => x.k === k);
+  const bars = (k) => { const l = L(k); return '<span class="bars' + (k === 'open' ? ' flat' : '') + '" aria-hidden="true">' + [0, 1, 2, 3, 4].map(i => '<i class="' + (i < l.on ? 'on' : '') + '" style="height: ' + (6 + i * 2.5) + 'px"></i>').join('') + '</span>'; };
+  const styleOf = (n) => n.replace(/^Intro to /, '').replace(/ Basics$/, '').replace(/ Ages \d+\+$/, '').replace(/^(Adult|Tiny) /, '').replace(/ (I\/II|I & II \(combined\)|IV|V|III|II|I)$/, '');
+  const ORDER = ['Ballet', 'Tap', 'Jazz Lyrical', 'Hip Hop', 'Jazz Hip Hop', 'Acro', 'Musical Theater', 'Modern/Contemporary', 'Breaking'];
+  const AGEB = [['tots', '18 mo–3', 1.5, 3], ['pre', '3–5', 3, 5], ['kids', '6–8', 6, 8], ['tween', '9–12', 9, 12], ['teen', 'Teen', 13, 18], ['adult', 'Adult', 19, 99]];
+  const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  const RATE = (m) => m <= 45 ? 16.63 : m <= 60 ? 19 : m <= 75 ? 23.5 : 28.5;
+  const esc = (s) => String(s).replace(/[&<>"]/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
+  CLASSES.forEach(c => { c.lv = levelOf(c.n); c.style = styleOf(c.n); });
+  const STYLES = [...new Set(CLASSES.map(c => c.style))].sort((a, b) => ((ORDER.indexOf(a) + 1) || 99) - ((ORDER.indexOf(b) + 1) || 99) || a.localeCompare(b)).slice(0, 9);
+  const S = { opt: 'A', ages: [], style: '', lvls: [], open: '', explain: false };
+  const toggle = (arr, v) => arr.includes(v) ? arr.filter(x => x !== v) : arr.concat(v);
+  const isPhone = () => matchMedia('(max-width: 700px)').matches;
+  const $ = (id) => document.getElementById(id);
+
+  // building blocks
+  const ageChips = () => '<div class="chips">' + [['', 'All ages']].concat(AGEB.map(b => [b[0], b[1]])).map(([k, t]) => '<button type="button" class="chip" data-age="' + k + '" aria-pressed="' + (k ? S.ages.includes(k) : !S.ages.length) + '">' + esc(t) + '</button>').join('') + '</div>';
+  const styleChips = () => '<div class="chips">' + [''].concat(STYLES).map(s => '<button type="button" class="chip" data-style="' + esc(s) + '" aria-pressed="' + (S.style === s) + '">' + esc(s || 'All styles') + '</button>').join('') + '</div>';
+  const levelTiles = () => '<div class="legend">' + LV.map(l => '<button type="button" class="lv" data-lv="' + l.k + '" aria-pressed="' + S.lvls.includes(l.k) + '">' + bars(l.k) + '<b>' + esc(l.name) + '</b><span class="who">' + esc(l.who) + '</span></button>').join('') + '</div>'
+    + '<p class="hint">New to a style? Start in Starter or Level 1. <button type="button" class="link" data-newonly="1">Show classes for new dancers</button></p>';
+  const levelChipsCompact = () => '<div class="chips">' + LV.map(l => '<button type="button" class="chip lvc" data-lv="' + l.k + '" aria-pressed="' + S.lvls.includes(l.k) + '">' + bars(l.k) + esc(l.name) + '</button>').join('') + '</div>';
+  const nPicked = () => S.ages.length + (S.style ? 1 : 0) + S.lvls.length;
+  const summary = () => [S.ages.length ? 'Ages ' + S.ages.map(k => AGEB.find(b => b[0] === k)[1]).join(', ') : '', S.style, S.lvls.map(k => L(k).name).join(', ')].filter(Boolean).join(' · ') || 'All classes';
+
+  function filtersHTML() {
+    if (S.opt === 'A') {
+      const body = '<div class="lbl">Dancer’s age · pick more than one for siblings</div>' + ageChips() + '<div class="lbl">Style</div>' + styleChips() + '<div class="lbl">Level · what the marks mean</div>' + levelTiles();
+      return '<div class="fbar"><button type="button" class="fbtn" data-fopen="1" aria-expanded="' + (S.open === 'all') + '">☰ Filters' + (nPicked() ? '<span class="n">' + nPicked() + '</span>' : '') + '</button><span class="fsum">' + esc(summary()) + '</span>'
+        + (nPicked() ? '<button type="button" class="link fclear" data-clear="1">Clear</button>' : '') + '</div>'
+        + (S.open === 'all' && !isPhone() ? '<div class="panel inline">' + body + '</div>' : '');
+    }
+    if (S.opt === 'B') {
+      const pill = (k, label, set) => '<button type="button" class="pill' + (set ? ' set' : '') + '" data-pop="' + k + '" aria-expanded="' + (S.open === k) + '">' + esc(label) + ' <span class="car">▾</span></button>';
+      const agesLabel = S.ages.length ? 'Ages ' + S.ages.map(k => AGEB.find(b => b[0] === k)[1]).join(', ') : 'Age';
+      const lvLabel = S.lvls.length ? (S.lvls.length === 1 ? L(S.lvls[0]).name : S.lvls.length + ' levels') : 'Level';
+      const pop = S.open === 'age' ? '<div class="lbl" style="margin-top: 0;">Pick more than one for siblings</div>' + ageChips()
+        : S.open === 'style' ? styleChips() : S.open === 'level' ? levelTiles() : '';
+      return '<div class="pills">' + pill('age', agesLabel, S.ages.length) + pill('style', S.style || 'Style', !!S.style) + pill('level', lvLabel, S.lvls.length)
+        + (nPicked() ? '<button type="button" class="link" data-clear="1" style="margin-left: 4px;">Clear</button>' : '')
+        + (pop ? '<div class="pop">' + pop + '<div style="margin-top: 10px; text-align: right;"><button type="button" class="chip" data-pop="">Done</button></div></div>' : '') + '</div>';
+    }
+    // C
+    const row = (k, inner) => '<div class="swipe"><span class="k">' + k + '</span>' + inner + '</div>';
+    return '<div class="cbox">' + row('Age', ageChips()) + row('Style', styleChips()) + row('Level', levelChipsCompact())
+      + '<div style="display: flex; gap: 14px; flex-wrap: wrap; padding-top: 4px;"><button type="button" class="link" data-explain="1" style="font-size: 13px;" aria-expanded="' + S.explain + '">' + (S.explain ? 'Hide' : 'What do the bars mean?') + '</button><button type="button" class="link" data-newonly="1" style="font-size: 13px;">New dancer? Show where to start</button></div>'
+      + (S.explain ? '<div class="explain"><dl>' + LV.map(l => '<dt>' + bars(l.k) + esc(l.name) + '</dt><dd>' + esc(l.who) + '</dd>').join('') + '</dl></div>' : '') + '</div>';
+  }
+  function sheetHTML() {
+    if (!(S.opt === 'A' && S.open === 'all' && isPhone())) return '';
+    return '<div class="sheet-bg" data-fclose="1"></div><div class="sheet" role="dialog" aria-label="Filters"><div class="grab"></div>'
+      + '<div class="lbl">Dancer’s age · pick more than one for siblings</div>' + ageChips() + '<div class="lbl">Style</div>' + styleChips() + '<div class="lbl">Level · what the marks mean</div>' + levelTiles()
+      + '<div class="done"><button type="button" class="ghost" data-clear="1">Clear</button><button type="button" class="primary" data-fclose="1">Show ' + list().length + ' classes</button></div></div>';
+  }
+  const ageOK = (c) => !S.ages.length || AGEB.some(b => S.ages.includes(b[0]) && c.lo <= b[3] && c.hi >= b[2]);
+  const list = () => CLASSES.filter(c => ageOK(c) && (!S.style || c.style === S.style) && (!S.lvls.length || S.lvls.includes(c.lv))).sort((a, b) => DAYS.indexOf(a.d) - DAYS.indexOf(b.d) || a.st - b.st);
+  function draw() {
+    document.querySelectorAll('[data-opt]').forEach(b => b.setAttribute('aria-pressed', b.dataset.opt === S.opt));
+    $('why').textContent = WHY[S.opt];
+    $('filters').innerHTML = filtersHTML();
+    $('sheet').innerHTML = sheetHTML();
+    document.body.style.overflow = $('sheet').innerHTML ? 'hidden' : '';
+    const rows = list();
+    $('count').textContent = rows.length + ' class' + (rows.length === 1 ? '' : 'es');
+    $('rows').innerHTML = rows.map(c => { const l = L(c.lv), ag = c.hi >= 99 ? c.lo + '+' : c.lo + '–' + c.hi;
+      return '<div class="row"><span class="when">' + esc(c.d + ' ' + c.t) + '</span><span><span class="nm">' + esc(c.n) + '<span role="img" aria-label="' + esc(l.name + ': ' + l.who) + '" title="' + esc(l.name + ' · ' + l.who) + '">' + bars(c.lv) + '</span></span><span class="sub">' + esc(c.room) + '<span class="showM"> · ' + esc(c.tc) + ' · Ages ' + esc(ag) + '</span></span></span>'
+        + '<span class="hideM">' + esc(ag) + '</span><span class="hideM">' + esc(c.tc) + '</span><span>$' + Math.round(RATE(c.m) * 9) + '</span></div>'; }).join('') || '<div class="empty">No classes match. Try another age, style or level.</div>';
+  }
+  document.addEventListener('click', (e) => {
+    const b = e.target.closest('button, .sheet-bg'); if (!b) return; const d = b.dataset;
+    if (d.opt) { S.opt = d.opt; S.open = ''; }
+    else if (d.age !== undefined) S.ages = d.age ? toggle(S.ages, d.age) : [];
+    else if (d.style !== undefined) { S.style = d.style; if (S.opt === 'B') S.open = ''; }
+    else if (d.lv) S.lvls = toggle(S.lvls, d.lv);
+    else if (d.newonly) S.lvls = ['start', 'l1'];
+    else if (d.clear) { S.ages = []; S.style = ''; S.lvls = []; }
+    else if (d.fopen) S.open = S.open === 'all' ? '' : 'all';
+    else if (d.fclose) S.open = '';
+    else if (d.pop !== undefined) S.open = S.open === d.pop ? '' : d.pop;
+    else if (d.explain) S.explain = !S.explain;
+    else return;
+    draw();
+  });
+  addEventListener('resize', draw);
+  draw();
+</script>
+</body>
+</html>
