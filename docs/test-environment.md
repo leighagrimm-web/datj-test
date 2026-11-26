@@ -144,6 +144,12 @@ own end date (separate from anyone's Google password). The server reads that dat
 Script Properties as `GITHUB_TOKEN_EXPIRES`; the admin's Home screen warns Brittany 30 days ahead, and if it does expire,
 Publish says so in plain words (the version is still saved in the History tab, nothing is lost).
 
+**Daily check email:** `dailyHealthCheck` runs every morning at 7 and emails `OWNER_EMAIL` plus everyone in
+`ALERT_EMAILS` (Script Properties, comma-separated: put Leigha's address here; never in the repo) at 30, 14, 7, 3, 2, 1
+days and on the day, daily while the key is expired or lost access, and one "all clear" when it's fixed. Set it up
+once per project: add `ALERT_EMAILS`, then run **`setupHealthCheck`** in the editor and allow sending email and the
+daily trigger (the owner account has to approve; it's the same Allow screen as setup).
+
 To renew (about 5 minutes; needs Leigha's GitHub sign-in):
 1. github.com → Settings → Developer settings → Fine-grained tokens → open the datj token → **Regenerate token**
    (same repo and Contents: Read and write). Pick the expiry: 90 days on test; for the live site consider 1 year.

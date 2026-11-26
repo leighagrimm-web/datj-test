@@ -103,6 +103,62 @@ function noteKeyExpiry_(r) {
   } catch (e) {}
 }
 
+// ---------------------------------------------------------------- daily health check
+// Every morning: is the GitHub publishing key still working, and how long until it expires? Emails the studio owner
+// (OWNER_EMAIL) and whoever is in ALERT_EMAILS (Script Properties: Leigha's address, comma-separated; never in the repo).
+// Warns at 30, 14, 7, 3, 2 and 1 days and on the day; daily while it's broken; one "all clear" when it's fixed.
+// Run setupHealthCheck once from the editor (it asks to allow sending email and the daily trigger).
+var KEY_WARN_DAYS = [30, 14, 7, 3, 2, 1, 0];
+function setupHealthCheck() {
+  ScriptApp.getProjectTriggers().forEach(function (t) { if (t.getHandlerFunction() === 'dailyHealthCheck') ScriptApp.deleteTrigger(t); });
+  ScriptApp.newTrigger('dailyHealthCheck').timeBased().everyDays(1).atHour(7).inTimezone('America/Chicago').create();
+  var st = dailyHealthCheck();
+  console.log('Daily check set for 7am. Today: ' + (st.problem ? st.problem.title : 'all good') + '. Emails go to: ' + (healthRecipients_() || 'nobody yet: set OWNER_EMAIL / ALERT_EMAILS'));
+}
+function healthRecipients_() {
+  var list = [ownerEmail_()].concat(prop_('ALERT_EMAILS').split(/[\s,;]+/)).map(function (e) { return String(e || '').trim().toLowerCase(); }).filter(function (e) { return /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e); });
+  return list.filter(function (e, i) { return list.indexOf(e) === i; }).join(',');
+}
+function keyProblem_(today) {
+  var code = 0;
+  try {
+    var c = gh_();
+    var r = UrlFetchApp.fetch('https://api.github.com/repos/' + c.repo, { headers: c.headers, muteHttpExceptions: true });
+    noteKeyExpiry_(r); code = r.getResponseCode();
+  } catch (e) { return { id: 'key-missing', title: 'The website’s publishing key isn’t set up', fix: 'Script Properties need GITHUB_TOKEN and GITHUB_REPO. Until then Publish can’t update the site.' }; }
+  if (code === 401) return { id: 'key-expired', title: 'The website’s publishing key has expired', fix: 'Publish can’t update the site until it’s renewed (about 5 minutes: regenerate it on GitHub, paste it into Script Properties → GITHUB_TOKEN, run checkGitHub). Changes in the admin are safe in the meantime.' };
+  if (code === 403 || code === 404) return { id: 'key-access', title: 'The website’s publishing key can’t reach the site’s files', fix: 'GitHub said ' + code + '. The key may have lost access to ' + prop_('GITHUB_REPO') + ' (check its repository and Contents: Read and write).' };
+  var exp = prop_('GITHUB_TOKEN_EXPIRES');
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(exp)) return null;
+  var days = Math.round((Date.parse(exp + 'T12:00:00Z') - Date.parse(today + 'T12:00:00Z')) / 864e5);
+  if (days > 30) return null;
+  return { id: 'key-soon', days: days, title: 'The website’s publishing key expires ' + (days <= 0 ? 'today' : days === 1 ? 'tomorrow' : 'in ' + days + ' days') + ' (' + exp + ')',
+    fix: 'After that, Publish can’t update the site. Renew it before then: regenerate it on GitHub, paste it into Script Properties → GITHUB_TOKEN, run checkGitHub.' };
+}
+function dailyHealthCheck() {
+  var props = PropertiesService.getScriptProperties();
+  var today = Utilities.formatDate(new Date(), 'America/Chicago', 'yyyy-MM-dd');
+  var prev = {}; try { prev = JSON.parse(props.getProperty('HEALTH_STATE') || '{}'); } catch (e) {}
+  var problem = keyProblem_(today), sent = '';
+  var site = (prop_('ENVIRONMENT') === 'LIVE' ? '' : '[TEST] ') + 'Dance & All That Jazz website';
+  var adminUrl = prop_('ADMIN_PAGE_URL');
+  var to = healthRecipients_();
+  var mail = function (subject, lines) {
+    if (!to) return 'no recipients';
+    try { MailApp.sendEmail({ to: to, subject: site + ': ' + subject, body: lines.concat(['', adminUrl ? 'Admin: ' + adminUrl : '', '', 'Sent by the website’s daily check.']).join('\n'), name: 'DATJ website check' }); return 'sent ' + today; }
+    catch (e) { console.error('health mail', e); return 'failed: ' + (e && e.message || e); }
+  };
+  if (problem) {
+    var due = problem.id === 'key-soon' ? KEY_WARN_DAYS.indexOf(problem.days) > -1 : true;
+    if (due && prev.day !== today) { sent = mail('Action needed: ' + problem.title, [problem.title + '.', '', problem.fix]); }
+  } else if (prev.problem) {
+    sent = mail('All clear: the publishing key is working', ['Fixed: ' + prev.problem.title + '.', '', 'Nothing else to do.']);
+  }
+  var st = { at: new Date().toISOString(), problem: problem, day: sent ? today : (problem ? prev.day || '' : ''), email: sent || prev.email || '' };
+  props.setProperty('HEALTH_STATE', JSON.stringify(st));
+  return st;
+}
+
 // ---------------------------------------------------------------- web apps
 
 // signin deployment: runs as whoever opens it ("Anyone with a Google account"), and its only permission is their
