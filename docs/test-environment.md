@@ -150,6 +150,14 @@ days and on the day, daily while the key is expired or lost access, and one "all
 once per project: add `ALERT_EMAILS`, then run **`setupHealthCheck`** in the editor and allow sending email and the
 daily trigger (the owner account has to approve; it's the same Allow screen as setup).
 
+**Video storage (Cloudflare R2) in the daily check:** once the studio's Cloudflare account exists, add two Script
+Properties: `CF_ACCOUNT_ID` (Cloudflare dashboard → the account's overview, right side: Account ID) and `CF_API_TOKEN`
+(My Profile → API Tokens → Create Token → Custom token: permission **Account → Account Analytics → Read**, that account
+only; copy it, don't paste it in chat). From the next morning the check reads the whole account's R2 usage this month
+and emails the owner + `ALERT_EMAILS` when storage passes 8 of the 10 free GB, uploads pass 800,000 of 1 million, or
+plays pass 8 of 10 million requests: the first day, then weekly while it stays over, then one "all clear". Without the
+two properties the R2 part is skipped. The latest numbers are kept in `R2_USAGE` for the admin's Performance screen.
+
 To renew (about 5 minutes; needs Leigha's GitHub sign-in):
 1. github.com → Settings → Developer settings → Fine-grained tokens → open the datj token → **Regenerate token**
    (same repo and Contents: Read and write). Pick the expiry: 90 days on test; for the live site consider 1 year.

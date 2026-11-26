@@ -113,7 +113,7 @@ function setupHealthCheck() {
   ScriptApp.getProjectTriggers().forEach(function (t) { if (t.getHandlerFunction() === 'dailyHealthCheck') ScriptApp.deleteTrigger(t); });
   ScriptApp.newTrigger('dailyHealthCheck').timeBased().everyDays(1).atHour(7).inTimezone('America/Chicago').create();
   var st = dailyHealthCheck();
-  console.log('Daily check set for 7am. Today: ' + (st.problem ? st.problem.title : 'all good') + '. Emails go to: ' + (healthRecipients_() || 'nobody yet: set OWNER_EMAIL / ALERT_EMAILS'));
+  console.log('Daily check set for 7am. Today: ' + (st.problems.length ? st.problems.map(function (x) { return x.title; }).join('; ') : 'all good') + '. Emails go to: ' + (healthRecipients_() || 'nobody yet: set OWNER_EMAIL / ALERT_EMAILS'));
 }
 function healthRecipients_() {
   var list = [ownerEmail_()].concat(prop_('ALERT_EMAILS').split(/[\s,;]+/)).map(function (e) { return String(e || '').trim().toLowerCase(); }).filter(function (e) { return /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e); });
@@ -125,36 +125,95 @@ function keyProblem_(today) {
     var c = gh_();
     var r = UrlFetchApp.fetch('https://api.github.com/repos/' + c.repo, { headers: c.headers, muteHttpExceptions: true });
     noteKeyExpiry_(r); code = r.getResponseCode();
-  } catch (e) { return { id: 'key-missing', title: 'The website’s publishing key isn’t set up', fix: 'Script Properties need GITHUB_TOKEN and GITHUB_REPO. Until then Publish can’t update the site.' }; }
-  if (code === 401) return { id: 'key-expired', title: 'The website’s publishing key has expired', fix: 'Publish can’t update the site until it’s renewed (about 5 minutes: regenerate it on GitHub, paste it into Script Properties → GITHUB_TOKEN, run checkGitHub). Changes in the admin are safe in the meantime.' };
-  if (code === 403 || code === 404) return { id: 'key-access', title: 'The website’s publishing key can’t reach the site’s files', fix: 'GitHub said ' + code + '. The key may have lost access to ' + prop_('GITHUB_REPO') + ' (check its repository and Contents: Read and write).' };
+  } catch (e) { return { id: 'key-missing', name: 'The publishing key', title: 'The website’s publishing key isn’t set up', fix: 'Script Properties need GITHUB_TOKEN and GITHUB_REPO. Until then Publish can’t update the site.' }; }
+  if (code === 401) return { id: 'key-expired', name: 'The publishing key', title: 'The website’s publishing key has expired', fix: 'Publish can’t update the site until it’s renewed (about 5 minutes: regenerate it on GitHub, paste it into Script Properties → GITHUB_TOKEN, run checkGitHub). Changes in the admin are safe in the meantime.' };
+  if (code === 403 || code === 404) return { id: 'key-access', name: 'The publishing key', title: 'The website’s publishing key can’t reach the site’s files', fix: 'GitHub said ' + code + '. The key may have lost access to ' + prop_('GITHUB_REPO') + ' (check its repository and Contents: Read and write).' };
   var exp = prop_('GITHUB_TOKEN_EXPIRES');
   if (!/^\d{4}-\d{2}-\d{2}$/.test(exp)) return null;
   var days = Math.round((Date.parse(exp + 'T12:00:00Z') - Date.parse(today + 'T12:00:00Z')) / 864e5);
   if (days > 30) return null;
-  return { id: 'key-soon', days: days, title: 'The website’s publishing key expires ' + (days <= 0 ? 'today' : days === 1 ? 'tomorrow' : 'in ' + days + ' days') + ' (' + exp + ')',
+  return { id: 'key-soon', name: 'The publishing key', days: days, title: 'The website’s publishing key expires ' + (days <= 0 ? 'today' : days === 1 ? 'tomorrow' : 'in ' + days + ' days') + ' (' + exp + ')',
     fix: 'After that, Publish can’t update the site. Renew it before then: regenerate it on GitHub, paste it into Script Properties → GITHUB_TOKEN, run checkGitHub.' };
+}
+// Cloudflare R2 (the video storage): warn well before the account passes the free monthly allowance.
+// Needs CF_ACCOUNT_ID and CF_API_TOKEN (a read-only token: Account Analytics → Read) in Script Properties; without
+// them the check is skipped. Free allowance per account per month: 10 GB stored, 1 million Class A requests
+// (uploads, lists), 10 million Class B requests (reads: every video play). Deletes are free. Warn at 80%.
+var R2_FREE = { gb: 10, a: 1e6, b: 1e7 }, R2_WARN = 0.8;
+function r2Usage_() {
+  var acct = prop_('CF_ACCOUNT_ID'), token = prop_('CF_API_TOKEN');
+  if (!acct || !token) return null;
+  var now = new Date(), iso = function (d) { return d.toISOString().replace(/\.\d+Z$/, 'Z'); };
+  var monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+  var q = 'query($acct: string!, $ms: Time!, $ss: Time!, $end: Time!) { viewer { accounts(filter: {accountTag: $acct}) {'
+    + ' storage: r2StorageAdaptiveGroups(limit: 1000, filter: {datetime_geq: $ss, datetime_leq: $end}, orderBy: [datetime_DESC]) { max { payloadSize metadataSize objectCount } dimensions { bucketName datetime } }'
+    + ' ops: r2OperationsAdaptiveGroups(limit: 1000, filter: {datetime_geq: $ms, datetime_leq: $end}) { sum { requests } dimensions { actionType } } } } }';
+  var r = UrlFetchApp.fetch('https://api.cloudflare.com/client/v4/graphql', { method: 'post', contentType: 'application/json', muteHttpExceptions: true,
+    headers: { Authorization: 'Bearer ' + token },
+    payload: JSON.stringify({ query: q, variables: { acct: acct, ms: iso(monthStart), ss: iso(new Date(now.getTime() - 2 * 864e5)), end: iso(now) } }) });
+  var j = {}; try { j = JSON.parse(r.getContentText() || '{}'); } catch (e) {}
+  var acc = j && j.data && j.data.viewer && j.data.viewer.accounts && j.data.viewer.accounts[0];
+  if (r.getResponseCode() !== 200 || !acc) return { error: 'Cloudflare said ' + r.getResponseCode() + ((j.errors && j.errors[0] && j.errors[0].message) ? ': ' + j.errors[0].message : '') };
+  // Storage: the newest reading for each bucket, added up
+  var seen = {}, bytes = 0, objects = 0;
+  (acc.storage || []).forEach(function (g) { var k = g.dimensions && g.dimensions.bucketName; if (!k || seen[k]) return; seen[k] = 1; bytes += (g.max.payloadSize || 0) + (g.max.metadataSize || 0); objects += g.max.objectCount || 0; });
+  // Requests this month by class (Cloudflare's billing classes)
+  var A = 0, B = 0;
+  (acc.ops || []).forEach(function (g) { var t = (g.dimensions && g.dimensions.actionType) || '', n = (g.sum && g.sum.requests) || 0;
+    if (/^(Delete|Abort)/.test(t)) return; if (/^(Head|Get|UsageSummary)/.test(t)) B += n; else A += n; });
+  return { at: now.toISOString(), gb: Math.round(bytes / 1e7) / 100, objects: objects, a: A, b: B, buckets: Object.keys(seen).length };
+}
+function r2Problems_() {
+  var u; try { u = r2Usage_(); } catch (e) { u = { error: String(e && e.message || e) }; }
+  if (!u) return [];
+  try { PropertiesService.getScriptProperties().setProperty('R2_USAGE', JSON.stringify(u)); } catch (e) {}
+  if (u.error) return [{ id: 'r2-check', name: 'The video storage check', weekly: true, title: 'The daily check couldn’t read the video storage’s usage', fix: u.error + '. Check CF_ACCOUNT_ID and CF_API_TOKEN (Account Analytics: Read) in Script Properties. Videos still play; this only affects the warning.' }];
+  var out = [], pct = function (x, of) { return Math.round(x / of * 100) + '%'; }, n = function (x) { return Math.round(x).toLocaleString('en-US'); };
+  var tail = ' Cloudflare charges only for what goes past the free amount (about $0.015 per GB a month for storage). Remove old videos, or expect a small charge on the studio’s card.';
+  if (u.gb >= R2_FREE.gb * R2_WARN) out.push({ id: 'r2-storage', name: 'Video storage', weekly: true, title: 'Video storage is at ' + u.gb + ' GB of the 10 GB free (' + pct(u.gb, R2_FREE.gb) + ')', fix: 'Past 10 GB, Cloudflare starts charging for the extra.' + tail });
+  if (u.a >= R2_FREE.a * R2_WARN) out.push({ id: 'r2-a', name: 'Video uploads', weekly: true, title: 'Video uploads this month: ' + n(u.a) + ' of the 1,000,000 free requests (' + pct(u.a, R2_FREE.a) + ')', fix: 'That’s unusually high for a dance studio site; something may be uploading or listing files over and over. Ask Leigha to look.' });
+  if (u.b >= R2_FREE.b * R2_WARN) out.push({ id: 'r2-b', name: 'Video plays', weekly: true, title: 'Video plays this month: ' + n(u.b) + ' of the 10,000,000 free requests (' + pct(u.b, R2_FREE.b) + ')', fix: 'Lots of plays (great!) or something loading the videos over and over. Past the free amount it’s about $0.36 per million. Ask Leigha to look.' });
+  return out;
 }
 function dailyHealthCheck() {
   var props = PropertiesService.getScriptProperties();
   var today = Utilities.formatDate(new Date(), 'America/Chicago', 'yyyy-MM-dd');
   var prev = {}; try { prev = JSON.parse(props.getProperty('HEALTH_STATE') || '{}'); } catch (e) {}
-  var problem = keyProblem_(today), sent = '';
+  var sentOn = prev.sentOn || {};
+  var problems = [keyProblem_(today)].concat(r2Problems_()).filter(Boolean);
   var site = (prop_('ENVIRONMENT') === 'LIVE' ? '' : '[TEST] ') + 'Dance & All That Jazz website';
   var adminUrl = prop_('ADMIN_PAGE_URL');
-  var to = healthRecipients_();
+  var to = healthRecipients_(), emailed = '';
   var mail = function (subject, lines) {
     if (!to) return 'no recipients';
     try { MailApp.sendEmail({ to: to, subject: site + ': ' + subject, body: lines.concat(['', adminUrl ? 'Admin: ' + adminUrl : '', '', 'Sent by the website’s daily check.']).join('\n'), name: 'DATJ website check' }); return 'sent ' + today; }
     catch (e) { console.error('health mail', e); return 'failed: ' + (e && e.message || e); }
   };
-  if (problem) {
-    var due = problem.id === 'key-soon' ? KEY_WARN_DAYS.indexOf(problem.days) > -1 : true;
-    if (due && prev.day !== today) { sent = mail('Action needed: ' + problem.title, [problem.title + '.', '', problem.fix]); }
-  } else if (prev.problem) {
-    sent = mail('All clear: the publishing key is working', ['Fixed: ' + prev.problem.title + '.', '', 'Nothing else to do.']);
+  var daysSince = function (d) { return d ? Math.round((Date.parse(today + 'T12:00:00Z') - Date.parse(d + 'T12:00:00Z')) / 864e5) : 999; };
+  // Which problems are due an email today: the key's countdown days; a broken key daily; usage warnings weekly
+  var due = problems.filter(function (x) {
+    var last = sentOn[x.id];
+    if (last === today) return false;
+    if (x.id === 'key-soon') return KEY_WARN_DAYS.indexOf(x.days) > -1;
+    if (x.weekly) return daysSince(last) >= 7;
+    return true;
+  });
+  if (due.length) {
+    emailed = mail('Action needed: ' + (due.length === 1 ? due[0].title : due.length + ' things on the website need attention'),
+      due.map(function (x) { return '• ' + x.title + '.\n  ' + x.fix; }));
+    if (/^sent/.test(emailed)) due.forEach(function (x) { sentOn[x.id] = today; });
   }
-  var st = { at: new Date().toISOString(), problem: problem, day: sent ? today : (problem ? prev.day || '' : ''), email: sent || prev.email || '' };
+  // One "all clear" for anything that was emailed about and is now fixed
+  // (the key's states count as one: "expires soon" turning into "expired" isn't fixed)
+  var fam = function (id) { return /^key-/.test(id) ? 'key' : id; };
+  var fams = problems.map(function (x) { return fam(x.id); });
+  var fixed = (prev.problems || []).filter(function (x) { return fams.indexOf(fam(x.id)) === -1 && sentOn[x.id]; });
+  if (fixed.length) {
+    var ok = mail('All clear: ' + (fixed.length === 1 ? (fixed[0].name || 'the website') + ' is back to normal' : 'the website is working normally'),
+      ['Back to normal:'].concat(fixed.map(function (x) { return '• ' + (x.name || x.title); })).concat(['', 'Nothing else to do.']));
+    if (/^sent/.test(ok)) { fixed.forEach(function (x) { Object.keys(sentOn).forEach(function (k) { if (fam(k) === fam(x.id)) delete sentOn[k]; }); }); emailed = emailed || ok; }
+  }
+  var st = { at: new Date().toISOString(), problems: problems, problem: problems[0] || null, sentOn: sentOn, email: emailed || prev.email || '' };
   props.setProperty('HEALTH_STATE', JSON.stringify(st));
   return st;
 }
