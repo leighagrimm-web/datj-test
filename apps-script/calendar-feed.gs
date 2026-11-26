@@ -195,7 +195,7 @@ var FEED = (function () {
         mine.forEach(function (r) {
           var aw = awardFor(r), a = mins(r.arrive), pf = mins(r.perf);
           if (a != null && (freeAt == null || a - freeAt >= 120))
-            out.push({ uid: c.id + '-' + iso + '-arr-' + r.num, date: iso, t0: clock(r.arrive), t1: clock(r.perf), title: 'Arrive: ' + c.name + tag, where: where,
+            out.push({ uid: c.id + '-' + iso + '-arr-' + r.num, date: iso, t0: clock(r.arrive), t1: clock(r.perf), title: 'Arrive: ' + c.name + (prelim ? tag : ' (final)'), where: where,
               desc: 'Arrive ' + r.arrive + ' for #' + r.num + ' ' + r.song + ' (on stage ~' + r.perf + ')\n' + r.dancers + (r.stage ? ' · ' + r.stage : '') + foot });
           out.push({ uid: c.id + '-' + iso + '-' + r.num, date: iso, t0: clock(r.perf), t1: later(clock(r.perf), 5), title: '#' + r.num + ' ' + r.song + ' on stage' + tag, where: where,
             desc: r.dancers + (r.stage ? ' · ' + r.stage : '') + (r.note ? '\n' + r.note : '') + foot });
