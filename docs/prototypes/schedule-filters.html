@@ -65,6 +65,13 @@
   .swipe .k { font-size: 9px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--mut); }
   .swipe .chips { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; padding-bottom: 2px; mask-image: linear-gradient(90deg, #000 88%, transparent); }
   .swipe .chips::-webkit-scrollbar { display: none; }
+  .swipe .rowwrap { position: relative; min-width: 0; }
+  .swipe .more { position: absolute; right: 0; top: 0; bottom: 2px; width: 40px; border: 0; background: linear-gradient(90deg, rgba(255,255,255,0), #FFFFFF 45%); color: var(--ink); font: inherit; font-size: 22px; font-weight: 700; cursor: pointer; display: none; justify-content: flex-end; align-items: center; padding: 0 4px 0 0; }
+  .swipe .rowwrap.has-more .more { display: flex; }
+  .swipe .rowwrap.has-more .chips { mask-image: none; }
+  .swipe .rowwrap:not(.has-more) .chips { mask-image: none; }
+  /* Laptops: no swiping, every chip shows (wrapping if needed) */
+  @media (min-width: 701px) { .swipe .chips { flex-wrap: wrap; overflow: visible; } .swipe .more { display: none !important; } .swipe { grid-template-columns: 60px minmax(0, 1fr); align-items: start; } .swipe .k { padding-top: 14px; } }
   .chip.lvc { display: inline-flex; gap: 7px; align-items: center; }
   .cbox { border-top: 1px solid var(--ink); border-bottom: 1px solid var(--line); padding: 6px 0 8px; }
   .explain { background: var(--soft); padding: 12px 14px; margin-top: 6px; }
@@ -114,7 +121,7 @@
   const WHY = {
     A: 'One bar with a Filters button and a one-line summary of what’s picked. Everything else stays tucked away: on a phone it slides up from the bottom, on a laptop it opens in place. Shortest page; one extra tap to change a filter.',
     B: 'One row of three pills. Each opens a small menu, and shows its choice once picked (e.g. “Ages 6–8”). Familiar from shopping sites; the level meanings live inside the Level menu.',
-    C: 'Every filter stays visible but only one line tall: swipe sideways for more. The bars explain themselves in a small “What do the bars mean?” box. Nothing hidden, about a third of today’s height.'
+    C: 'Phones: every filter stays visible but only one line tall; swipe sideways or tap › for more. Laptops: no swiping, every choice shows. The bars are explained in a small “What do the bars mean?” box.'
   };
   const levelOf = (n) => { if (/pre-pointe/i.test(n)) return 'l2'; if (/\b(III|IV|V)\b|pointe/i.test(n)) return 'adv'; if (/\bI\s*(\/|&)\s*II\b/.test(n)) return 'l12'; if (/\bII\b/.test(n)) return 'l2'; if (/\bI\b/.test(n)) return 'l1'; if (/tiny|basics|intro|disney|tots|combo/i.test(n)) return 'start'; return 'open'; };
   const L = (k) => LV.find(x => x.k === k);
@@ -159,7 +166,7 @@
         + (pop ? '<div class="pop">' + pop + '<div style="margin-top: 10px; text-align: right;"><button type="button" class="chip" data-pop="">Done</button></div></div>' : '') + '</div>';
     }
     // C
-    const row = (k, inner) => '<div class="swipe"><span class="k">' + k + '</span>' + inner + '</div>';
+    const row = (k, inner) => '<div class="swipe"><span class="k">' + k + '</span><div class="rowwrap" data-row="' + k + '">' + inner + '<button type="button" class="more" data-more="' + k + '" aria-label="More ' + k.toLowerCase() + ' choices">›</button></div></div>';
     return '<div class="cbox">' + row('Age', ageChips()) + row('Style', styleChips()) + row('Level', levelChipsCompact())
       + '<div style="display: flex; gap: 14px; flex-wrap: wrap; padding-top: 4px;"><button type="button" class="link" data-explain="1" style="font-size: 13px;" aria-expanded="' + S.explain + '">' + (S.explain ? 'Hide' : 'What do the bars mean?') + '</button><button type="button" class="link" data-newonly="1" style="font-size: 13px;">New dancer? Show where to start</button></div>'
       + (S.explain ? '<div class="explain"><dl>' + LV.map(l => '<dt>' + bars(l.k) + esc(l.name) + '</dt><dd>' + esc(l.who) + '</dd>').join('') + '</dl></div>' : '') + '</div>';
@@ -172,10 +179,16 @@
   }
   const ageOK = (c) => !S.ages.length || AGEB.some(b => S.ages.includes(b[0]) && c.lo <= b[3] && c.hi >= b[2]);
   const list = () => CLASSES.filter(c => ageOK(c) && (!S.style || c.style === S.style) && (!S.lvls.length || S.lvls.includes(c.lv))).sort((a, b) => DAYS.indexOf(a.d) - DAYS.indexOf(b.d) || a.st - b.st);
+  // Swipe rows: keep each row's scroll position across redraws, and show the › arrow while a row has more to the right
+  const keepScroll = {};
+  const markMore = () => document.querySelectorAll('.rowwrap').forEach(w => { const c = w.querySelector('.chips'); w.classList.toggle('has-more', c.scrollLeft + c.clientWidth < c.scrollWidth - 4); });
   function draw() {
+    document.querySelectorAll('.rowwrap').forEach(w => { keepScroll[w.dataset.row] = w.querySelector('.chips').scrollLeft; });
     document.querySelectorAll('[data-opt]').forEach(b => b.setAttribute('aria-pressed', b.dataset.opt === S.opt));
     $('why').textContent = WHY[S.opt];
     $('filters').innerHTML = filtersHTML();
+    document.querySelectorAll('.rowwrap').forEach(w => { const c = w.querySelector('.chips'); c.scrollLeft = keepScroll[w.dataset.row] || 0; c.addEventListener('scroll', markMore, { passive: true }); });
+    markMore();
     $('sheet').innerHTML = sheetHTML();
     document.body.style.overflow = $('sheet').innerHTML ? 'hidden' : '';
     const rows = list();
@@ -196,6 +209,7 @@
     else if (d.fclose) S.open = '';
     else if (d.pop !== undefined) S.open = S.open === d.pop ? '' : d.pop;
     else if (d.explain) S.explain = !S.explain;
+    else if (d.more) { const c = b.parentElement.querySelector('.chips'); c.scrollBy({ left: c.clientWidth * 0.7, behavior: 'smooth' }); return; }
     else return;
     draw();
   });
