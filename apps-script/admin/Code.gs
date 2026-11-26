@@ -55,15 +55,15 @@ var ENC_NAMES = { company: 'Company Central (Company password)', recital: 'Annua
 var KEYS = {
   recital: 'boolean', season: 'object', calSheet: 'string', banner: 'object', home: 'object', nav: 'array',
   prices: 'object', photos: 'object', featured: 'array', calendar: 'array', coEdit: 'objectOrNull',
-  policies: 'array', rc: 'array', lists: 'object', texts: 'object', teachers: 'object', staffV: 'number', staff: 'array'
+  policies: 'array', rc: 'array', lists: 'object', texts: 'object', teachers: 'object', levels: 'object', staffV: 'number', staff: 'array'
 };
 // What the public website reads. Company Central edits (coEdit) and the calendar sheet link stay private.
 var PUBLIC_KEYS = ['recital', 'season', 'banner', 'home', 'nav', 'prices', 'photos', 'featured', 'calendar',
-  'policies', 'rc', 'lists', 'texts', 'teachers', 'staffV', 'staff'];
+  'policies', 'rc', 'lists', 'texts', 'teachers', 'levels', 'staffV', 'staff'];
 var SECTION_NAMES = {
   recital: 'Annual Performance switch', season: 'Between seasons page', calSheet: 'Calendar sheet link', banner: 'Top banner',
   home: 'Home', nav: 'Menu', prices: 'Sessions & prices', photos: 'Photos', featured: 'Featured events', calendar: 'Studio calendar',
-  coEdit: 'Company Central', policies: 'Policies', rc: 'Annual Performance', lists: 'Page cards', texts: 'Page text',
+  levels: 'Class levels', coEdit: 'Company Central', policies: 'Policies', rc: 'Annual Performance', lists: 'Page cards', texts: 'Page text',
   teachers: 'Teachers', staffV: '', staff: 'Instructors & staff'
 };
 var NAV_IDS = ['classes', 'pricing', 'company', 'about', 'families', 'shop'];
