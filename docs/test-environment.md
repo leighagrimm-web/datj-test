@@ -138,6 +138,21 @@ Google account. Apps Script gets confused when two accounts are signed in at onc
    the owner, makes the sign-in key and the History tab. Then run **`checkGitHub`**: it should log "(can write)".
 8. Share the Sheet with nobody else. Never "anyone with the link".
 
+### Renewing the GitHub key (every 90 days, or whatever expiry it was made with)
+The admin's Publish, Refresh from Studio Pro and photo uploads all write to the repo with `GITHUB_TOKEN`. The key has its
+own end date (separate from anyone's Google password). The server reads that date from GitHub's answers and keeps it in
+Script Properties as `GITHUB_TOKEN_EXPIRES`; the admin's Home screen warns Brittany 30 days ahead, and if it does expire,
+Publish says so in plain words (the version is still saved in the History tab, nothing is lost).
+
+To renew (about 5 minutes; needs Leigha's GitHub sign-in):
+1. github.com → Settings → Developer settings → Fine-grained tokens → open the datj token → **Regenerate token**
+   (same repo and Contents: Read and write). Pick the expiry: 90 days on test; for the live site consider 1 year.
+2. Copy it (don't paste it in chat). Script editor → Project Settings → Script Properties → edit `GITHUB_TOKEN` → paste → Save.
+3. Run **`checkGitHub`** in the editor: it should log "(can write)" and the new expiry date. The Home warning goes away
+   the next time the admin loads.
+4. Put a calendar reminder two weeks before the new expiry date.
+
+
 ## After setup: test plan
 
 - [ ] Signed out: admin shows only "Sign in with Google". A different Google account opening the sign-in link gets

@@ -751,7 +751,7 @@
     if (!res.ok) { if (res.code === 'signin') { pass = ''; try { sessionStorage.removeItem(PASS); } catch (e) {} return gate(res.error); } $('main').innerHTML = '<div class="gate"><h1>Couldn’t load the admin</h1><p>' + esc(res.error) + '</p><button type="button" class="btn primary" data-reboot="1">Try again</button></div>'; return; }
     document.body.classList.remove('gated'); $('signout').hidden = false;
     useServer(res.content, res.version, res.publishedAt); useLocks(res.locks);
-    feedKeyServer = res.feedKey || '';
+    feedKeyServer = res.feedKey || ''; keyExpires = res.keyExpires || '';
     who.email = res.email || ''; who.owner = !!res.owner; who.ownerEmail = res.ownerEmail || ''; helpers = res.helpers || [];
     $('signout').title = 'Signed in as ' + who.email;
     const saved = read(DRAFT); draft = saved ? pick(saved) : clone(live);
@@ -762,11 +762,17 @@
   }
 
   // ---------- pages ----------
+  // The website's publishing key (GitHub) has an end date: warn on Home 30 days ahead so Leigha can renew it in time
+  let keyExpires = '';
+  const keyNote = () => { if (!keyExpires || !/^\d{4}-\d{2}-\d{2}$/.test(keyExpires)) return '';
+    const days = Math.round((new Date(keyExpires + 'T12:00:00') - new Date(todayISO + 'T12:00:00')) / 864e5); if (days > 30) return '';
+    return '<div class="note" style="margin-bottom: 16px;"><b>' + (days < 0 ? '⚠ The website’s publishing key expired on ' + fmtRange(keyExpires) + '.' : '⚠ The website’s publishing key expires ' + (days === 0 ? 'today' : days === 1 ? 'tomorrow' : 'in ' + days + ' days (' + fmtRange(keyExpires) + ')') + '.') + '</b> '
+      + (days < 0 ? 'Publish can’t update the site until it’s renewed. ' : 'After that, Publish can’t update the site. ') + 'Ask Leigha to renew it: it takes about 5 minutes, and your changes are safe in the meantime.</div>'; };
   function vHome() {
     const missing = draft.staff.filter(s => !s.bio.trim()).length, noPhoto = draft.staff.filter(s => !s.photo).length;
     const bannerTo = destName(draft.banner.href);
     const hdr = draft.nav.filter(n => n.header).length;
-    return '<h1>Hi Brittany.</h1><p class="lede">What would you like to update? Changes stay private until you press <b>Publish</b>.</p>'
+    return '<h1>Hi Brittany.</h1><p class="lede">What would you like to update? Changes stay private until you press <b>Publish</b>.</p>' + keyNote()
       + '<div class="tiles">'
       + '<button class="tile" type="button" data-go="banner"><b>Post an announcement</b><span>The teal line across the top of every page.</span><span class="now">Now: “' + esc(draft.banner.text) + '” → ' + esc(bannerTo) + '</span></button>'
       + '<button class="tile" type="button" data-go="featured"><b>Featured events</b><span>Halloween party, Annual Performance, camps. A corner pill and a homepage strip that turn on and off by date.</span><span class="now">' + (draft.featured.filter(featLive).map(f => f.title).join(', ') || 'Nothing showing') + '</span></button>'

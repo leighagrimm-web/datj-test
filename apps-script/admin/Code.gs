@@ -84,9 +84,23 @@ function setup() {
 function checkGitHub() {
   var c = gh_();
   var r = UrlFetchApp.fetch('https://api.github.com/repos/' + c.repo, { headers: c.headers, muteHttpExceptions: true });
+  noteKeyExpiry_(r);
   var j = JSON.parse(r.getContentText() || '{}');
   if (r.getResponseCode() !== 200) throw new Error('GitHub said ' + r.getResponseCode() + ': ' + (j.message || ''));
-  console.log('OK: ' + j.full_name + (j.permissions && j.permissions.push ? ' (can write)' : ' (read only: the token needs Contents read and write)'));
+  console.log('OK: ' + j.full_name + (j.permissions && j.permissions.push ? ' (can write)' : ' (read only: the token needs Contents read and write)')
+    + '. Key expires: ' + (prop_('GITHUB_TOKEN_EXPIRES') || 'never (or GitHub didn’t say)'));
+}
+
+// The GitHub key (GITHUB_TOKEN) has its own end date. GitHub sends it with every answer; keep it so the admin can warn
+// 30 days ahead (load_ returns it), and turn "401" into words Brittany can act on.
+var KEY_EXPIRED = 'The website’s publishing key (the GitHub key) has expired or was removed, so the site can’t be updated. Ask Leigha to renew it; it takes about 5 minutes.';
+function noteKeyExpiry_(r) {
+  try {
+    var h = r.getAllHeaders ? r.getAllHeaders() : r.getHeaders(), v = '';
+    Object.keys(h).forEach(function (k) { if (k.toLowerCase() === 'github-authentication-token-expiration') v = String(h[k]); });
+    var m = /(\d{4}-\d{2}-\d{2})/.exec(v); if (!m) return;
+    if (prop_('GITHUB_TOKEN_EXPIRES') !== m[1]) PropertiesService.getScriptProperties().setProperty('GITHUB_TOKEN_EXPIRES', m[1]);
+  } catch (e) {}
 }
 
 // ---------------------------------------------------------------- web apps
@@ -197,7 +211,7 @@ function load_(who) {
   var last = lastVersion_();
   return { ok: true, email: who.email, owner: who.owner, ownerEmail: ownerEmail_(), helpers: who.owner ? helpers_() : null,
     env: prop_('ENVIRONMENT') || 'TEST', version: last ? last.version : 0,
-    publishedAt: last ? last.at : '', by: last ? last.by : '', content: last ? last.content : null, locks: locks_(), feedKey: feedKey_() };
+    publishedAt: last ? last.at : '', by: last ? last.by : '', content: last ? last.content : null, locks: locks_(), feedKey: feedKey_(), keyExpires: prop_('GITHUB_TOKEN_EXPIRES') || '' };
 }
 
 // The Company and Families passwords, kept here so Brittany's admin can re-lock details without typing them.
@@ -284,7 +298,8 @@ function publish_(email, req) {
     catch (err) {
       sh.getRange(row, 6).setValue('Failed: ' + String(err && err.message || err).slice(0, 300));
       return { ok: false, code: 'site', version: version, publishedAt: at.toISOString(), content: full,
-        error: 'Saved as version ' + version + ', but the website couldn’t be updated: ' + (err && err.message || err) + '. Press Publish again to retry.' };
+        error: String(err && err.message || err) === KEY_EXPIRED ? 'Saved as version ' + version + ' (nothing is lost). ' + KEY_EXPIRED + ' Once it’s renewed, press Publish again.'
+          : 'Saved as version ' + version + ', but the website couldn’t be updated: ' + (err && err.message || err) + '. Press Publish again to retry.' };
     }
     var nPhotos = Object.keys(photos.files).length;
     var label = 'Updated' + (nPhotos ? ' + ' + nPhotos + ' photo' + (nPhotos > 1 ? 's' : '') : '') + (Object.keys(enc).length ? ' + locked files' : '');
@@ -514,7 +529,9 @@ function saveClasses_(req) {
 function ghGetJson_(path) {
   var c = gh_();
   var r = UrlFetchApp.fetch('https://api.github.com/repos/' + c.repo + '/contents/' + path + '?ref=' + encodeURIComponent(c.branch), { headers: c.headers, muteHttpExceptions: true });
+  noteKeyExpiry_(r);
   if (r.getResponseCode() === 404) return null;
+  if (r.getResponseCode() === 401) throw new Error(KEY_EXPIRED);
   if (r.getResponseCode() !== 200) throw new Error('GitHub said ' + r.getResponseCode() + ' reading ' + path);
   var j = JSON.parse(r.getContentText());
   return JSON.parse(Utilities.newBlob(Utilities.base64Decode(String(j.content).replace(/\s/g, ''))).getDataAsString('UTF-8'));
@@ -536,9 +553,10 @@ function ghCommit_(files, message) {
     var o = { method: method, headers: c.headers, muteHttpExceptions: true };
     if (body) { o.contentType = 'application/json'; o.payload = JSON.stringify(body); }
     var r = UrlFetchApp.fetch(api + path, o);
+    noteKeyExpiry_(r);
     return { code: r.getResponseCode(), j: JSON.parse(r.getContentText() || '{}') };
   };
-  var fail = function (r, what) { return new Error('GitHub said ' + r.code + ' when ' + what + (r.j && r.j.message ? ': ' + r.j.message : '')); };
+  var fail = function (r, what) { return new Error(r.code === 401 ? KEY_EXPIRED : 'GitHub said ' + r.code + ' when ' + what + (r.j && r.j.message ? ': ' + r.j.message : '')); };
   var tree = Object.keys(files).map(function (p) {
     var f = files[p];
     if (typeof f === 'string') return { path: p, mode: '100644', type: 'blob', content: f };

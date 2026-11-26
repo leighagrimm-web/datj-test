@@ -57,5 +57,7 @@ Don't copy `site3/studio.ics`: the calendar bot (`.github/workflows/studio-calen
 13. **PageSpeed Insights** on a real phone and pagespeed.web.dev (needs a free API key to run it from here).
 14. **Accounts at handoff:** Britt owns every account, two-step sign-in on, domain auto-renew and lock, SPF/DKIM/DMARC on the studio's email. Decide whether datj-concept should be private (it holds planning notes); datj-test has to stay public for free Pages.
 
+**GitHub key renewal:** the admin's publishing key (`GITHUB_TOKEN`) expires on its own schedule; the admin Home warns 30 days ahead. Steps: docs/test-environment.md → "Renewing the GitHub key". A Google password change does not affect the admin or calendars (no Gmail scopes); Brittany just signs in again.
+
 ## Open items needing Britt/Leigha
 Audition Google Form link · Families password · technique-only class list · 2027 summer details · paid events as Studio Pro classes with a Lead Trial Fee (works; Bollywood class in its own season doesn't show on the landing page yet) · teacher assignments now set in admin → Classes → Teachers.
