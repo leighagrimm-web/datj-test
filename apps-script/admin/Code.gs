@@ -103,6 +103,33 @@ function noteKeyExpiry_(r) {
   } catch (e) {}
 }
 
+// ---------------------------------------------------------------- timing (the admin's Performance screen)
+// var t = timer_(); … t.lap('Step'); … t.out() → { parts: [[step, ms]], total }
+function timer_() {
+  var t0 = Date.now(), last = t0, parts = [];
+  return { lap: function (name) { var n = Date.now(); parts.push([name, n - last]); last = n; }, out: function () { return { parts: parts, total: Date.now() - t0 }; } };
+}
+// Google gives scheduled jobs about 90 minutes a day on a free Gmail account, about 6 hours on Workspace.
+var RUN_LIMIT_MIN = { TEST: 90, LIVE: 360 };
+// Counts a scheduled job's time toward today's total and keeps its last run with steps. Never breaks the job.
+function noteRun_(job, ms, steps, result) {
+  try {
+    var p = PropertiesService.getScriptProperties();
+    var today = Utilities.formatDate(new Date(), 'America/Chicago', 'yyyy-MM-dd');
+    var t = {}; try { t = JSON.parse(p.getProperty('RUNTIME') || '{}'); } catch (e) {}
+    if (t.day !== today) { t = { prevDay: t.day || '', prevMs: t.ms || 0, prevJobs: t.jobs || {}, day: today, ms: 0, jobs: {} }; }
+    t.ms = (t.ms || 0) + ms; t.jobs = t.jobs || {};
+    var j = t.jobs[job] || (t.jobs[job] = { n: 0, ms: 0 }); j.n += 1; j.ms += ms;
+    var runs = {}; try { runs = JSON.parse(p.getProperty('LAST_RUNS') || '{}'); } catch (e) {}
+    runs[job] = { at: new Date().toISOString(), ms: ms, steps: steps, result: result || '' };
+    p.setProperties({ RUNTIME: JSON.stringify(t), LAST_RUNS: JSON.stringify(runs) });
+  } catch (err) { console.warn('noteRun_: ' + err); }
+}
+function triggerCounts_() {
+  var out = {}; try { ScriptApp.getProjectTriggers().forEach(function (tr) { var f = tr.getHandlerFunction(); out[f] = (out[f] || 0) + 1; }); } catch (e) {}
+  return out;
+}
+
 // ---------------------------------------------------------------- daily health check
 // Every morning: is the GitHub publishing key still working, and how long until it expires? Emails the studio owner
 // (OWNER_EMAIL) and whoever is in ALERT_EMAILS (Script Properties: Leigha's address, comma-separated; never in the repo).
@@ -175,12 +202,15 @@ function r2Problems_() {
   if (u.b >= R2_FREE.b * R2_WARN) out.push({ id: 'r2-b', name: 'Video plays', weekly: true, title: 'Video plays this month: ' + n(u.b) + ' of the 10,000,000 free requests (' + pct(u.b, R2_FREE.b) + ')', fix: 'Lots of plays (great!) or something loading the videos over and over. Past the free amount it’s about $0.36 per million. Ask Leigha to look.' });
   return out;
 }
-function dailyHealthCheck() {
+function dailyHealthCheck(e) {
+  var tm = timer_();
   var props = PropertiesService.getScriptProperties();
   var today = Utilities.formatDate(new Date(), 'America/Chicago', 'yyyy-MM-dd');
   var prev = {}; try { prev = JSON.parse(props.getProperty('HEALTH_STATE') || '{}'); } catch (e) {}
   var sentOn = prev.sentOn || {};
-  var problems = [keyProblem_(today)].concat(r2Problems_()).filter(Boolean);
+  var kp = keyProblem_(today); tm.lap('GitHub key');
+  var rp = r2Problems_(); tm.lap('Cloudflare video storage');
+  var problems = [kp].concat(rp).filter(Boolean);
   var site = (prop_('ENVIRONMENT') === 'LIVE' ? '' : '[TEST] ') + 'Dance & All That Jazz website';
   var adminUrl = prop_('ADMIN_PAGE_URL');
   var to = healthRecipients_(), emailed = '';
@@ -215,6 +245,9 @@ function dailyHealthCheck() {
   }
   var st = { at: new Date().toISOString(), problems: problems, problem: problems[0] || null, sentOn: sentOn, email: emailed || prev.email || '' };
   props.setProperty('HEALTH_STATE', JSON.stringify(st));
+  tm.lap('Emails');
+  var o = tm.out();
+  if (e && e.triggerUid) noteRun_('dailyHealthCheck', o.total, o.parts, problems.length ? problems.length + ' to fix' : 'All good');
   return st;
 }
 
@@ -250,6 +283,7 @@ function doPost(e) {
   if (!who.ok) return json_({ ok: false, code: 'signin', error: who.error });
   try {
     if (req.action === 'load') return json_(load_(who));
+    if (req.action === 'perf') return json_(perf_());
     if (req.action === 'helpers') return json_(who.owner ? saveHelpers_(req) : { ok: false, error: 'Only the studio owner can change who has access.' });
     if (req.action === 'publish' && req.newLocks && Object.keys(req.newLocks).some(function (k) { return req.newLocks[k]; }) && !who.owner)
       return json_({ ok: false, code: 'invalid', error: 'Only the studio owner can change the Company or Families password.' });
@@ -323,10 +357,12 @@ function safeEqual_(a, b) {
 // ---------------------------------------------------------------- load / publish / history
 
 function load_(who) {
-  var last = lastVersion_();
-  return { ok: true, email: who.email, owner: who.owner, ownerEmail: ownerEmail_(), helpers: who.owner ? helpers_() : null,
+  var tm = timer_();
+  var last = lastVersion_(); tm.lap('Reading the History tab');
+  var lk = locks_(), fk = feedKey_(), hp = who.owner ? helpers_() : null; tm.lap('Passwords, helpers, calendar key');
+  return { ok: true, email: who.email, owner: who.owner, ownerEmail: ownerEmail_(), helpers: hp,
     env: prop_('ENVIRONMENT') || 'TEST', version: last ? last.version : 0,
-    publishedAt: last ? last.at : '', by: last ? last.by : '', content: last ? last.content : null, locks: locks_(), feedKey: feedKey_(), keyExpires: prop_('GITHUB_TOKEN_EXPIRES') || '' };
+    publishedAt: last ? last.at : '', by: last ? last.by : '', content: last ? last.content : null, locks: lk, feedKey: fk, keyExpires: prop_('GITHUB_TOKEN_EXPIRES') || '', timing: tm.out() };
 }
 
 // The Company and Families passwords, kept here so Brittany's admin can re-lock details without typing them.
@@ -342,6 +378,7 @@ function saveLock_(req) {
 }
 
 function publish_(email, req) {
+  var tm = timer_();
   var check = validate_(req.content);
   if (check.errors.length) return { ok: false, code: 'invalid', error: 'Some things need fixing before this can go live:', errors: check.errors.slice(0, 12) };
   var photos = takePhotos_(check.content);
@@ -353,7 +390,8 @@ function publish_(email, req) {
   var lock = LockService.getScriptLock();
   if (!lock.tryLock(30000)) return { ok: false, code: 'busy', error: 'Another publish is still running. Try again in a moment.' };
   try {
-    var last = lastVersion_();
+    tm.lap('Checking the content and photos');
+    var last = lastVersion_(); tm.lap('Reading the last version');
     var latest = last ? last.version : 0;
     // Published from another device (or another tab) since this draft was opened.
     if (!req.force && Number(req.baseVersion || 0) !== latest) {
@@ -403,7 +441,7 @@ function publish_(email, req) {
     for (var i = 0; i < fullText.length; i += CHUNK) chunks.push(fullText.slice(i, i + CHUNK));
     sh.getRange(row, 1, 1, DATA_COL - 1 + chunks.length).setValues([[version, at, email, Math.round(fullText.length / 1024), changed.join(', '), 'Sending…'].concat(chunks)]);
     sh.getRange(row, 2).setNumberFormat('yyyy-mm-dd h:mm am/pm');
-    SpreadsheetApp.flush();
+    SpreadsheetApp.flush(); tm.lap('Saving to the History tab');
 
     var files = { 'content.json': pubText };
     Object.keys(photos.files).forEach(function (p) { files[p] = { base64: photos.files[p] }; });
@@ -412,10 +450,12 @@ function publish_(email, req) {
     try { site = ghCommit_(files, 'Content v' + version + ' published from the admin (' + changed.join(', ').slice(0, 120) + ')'); }
     catch (err) {
       sh.getRange(row, 6).setValue('Failed: ' + String(err && err.message || err).slice(0, 300));
+      tm.lap('Sending to the website (failed)'); notePublish_(tm.out(), false, version, fullText.length);
       return { ok: false, code: 'site', version: version, publishedAt: at.toISOString(), content: full,
         error: String(err && err.message || err) === KEY_EXPIRED ? 'Saved as version ' + version + ' (nothing is lost). ' + KEY_EXPIRED + ' Once it’s renewed, press Publish again.'
           : 'Saved as version ' + version + ', but the website couldn’t be updated: ' + (err && err.message || err) + '. Press Publish again to retry.' };
     }
+    tm.lap('Sending to the website (GitHub)'); notePublish_(tm.out(), true, version, fullText.length);
     var nPhotos = Object.keys(photos.files).length;
     var label = 'Updated' + (nPhotos ? ' + ' + nPhotos + ' photo' + (nPhotos > 1 ? 's' : '') : '') + (Object.keys(enc).length ? ' + locked files' : '');
     sh.getRange(row, 6).setValue(site.url ? '=HYPERLINK("' + site.url + '","' + label + '")' : label);
@@ -447,6 +487,43 @@ function historySheet_() {
   var have = sh.getLastColumn() ? sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0] : [];
   if (!have[0]) { sh.getRange(1, 1, 1, HEAD.length).setValues([HEAD]).setFontWeight('bold'); sh.setColumnWidths(DATA_COL, 1, 120); }
   return sh;
+}
+
+function notePublish_(o, ok, version, bytes) {
+  try { PropertiesService.getScriptProperties().setProperty('LAST_PUBLISH', JSON.stringify({ at: new Date().toISOString(), ms: o.total, steps: o.parts, ok: ok, version: version, kb: Math.round(bytes / 1024) })); } catch (e) {}
+}
+// Everything the admin's Performance screen shows besides its own load time (which the admin measures itself)
+function perf_() {
+  var p = PropertiesService.getScriptProperties(), j = function (k) { try { return JSON.parse(p.getProperty(k) || 'null'); } catch (e) { return null; } };
+  var today = Utilities.formatDate(new Date(), 'America/Chicago', 'yyyy-MM-dd');
+  var t = j('RUNTIME') || {}, isToday = t.day === today, limit = RUN_LIMIT_MIN[(prop_('ENVIRONMENT') || 'TEST').toUpperCase()] || 90;
+  // History tab: rows and the newest version's size
+  var sh = historySheet_(), rows = Math.max(0, sh.getLastRow() - 1), lastKb = rows ? Number(sh.getRange(sh.getLastRow(), 4).getValue()) || 0 : 0;
+  // Dancer calendar links: how many, and how many a phone checked in the last 7 days
+  var links = { total: 0, active: 0, week: 0 };
+  try {
+    var lv = linksSheet_().getDataRange().getValues(), wk = Date.now() - 7 * 864e5;
+    lv.slice(1).forEach(function (r) { if (!r[0]) return; links.total++; if (r[5] !== false && String(r[5]).toLowerCase() !== 'no') links.active++; var d = r[3] instanceof Date ? r[3].getTime() : Date.parse(r[3]); if (d && d >= wk) links.week++; });
+  } catch (e) { links.error = String(e && e.message || e); }
+  // GitHub's scheduled jobs (class sync, studio calendar, printable PDF): the newest run of each
+  var gh = { runs: [] };
+  try {
+    var c = gh_(), url = 'https://api.github.com/repos/' + c.repo + '/actions/runs?per_page=40&branch=' + encodeURIComponent(c.branch);
+    var r = UrlFetchApp.fetch(url, { headers: c.headers, muteHttpExceptions: true });
+    if (r.getResponseCode() !== 200) r = UrlFetchApp.fetch(url, { headers: { Accept: 'application/vnd.github+json' }, muteHttpExceptions: true });   // public repo: no key needed to read
+    if (r.getResponseCode() === 200) {
+      var seen = {};
+      (JSON.parse(r.getContentText()).workflow_runs || []).forEach(function (w) { if (seen[w.name]) return; seen[w.name] = 1;
+        gh.runs.push({ name: w.name, at: w.run_started_at || w.created_at, ms: Date.parse(w.updated_at) - Date.parse(w.run_started_at || w.created_at), status: w.status, result: w.conclusion || '', url: w.html_url }); });
+    } else gh.error = 'GitHub said ' + r.getResponseCode();
+  } catch (e) { gh.error = String(e && e.message || e); }
+  return {
+    ok: true, env: prop_('ENVIRONMENT') || 'TEST',
+    runs: j('LAST_RUNS') || {}, triggers: triggerCounts_(),
+    runtime: { today: isToday ? t.ms || 0 : 0, yesterday: isToday ? t.prevMs || 0 : t.ms || 0, limitMin: limit, warnMin: Math.round(limit * 2 / 3) },
+    publish: j('LAST_PUBLISH'), health: j('HEALTH_STATE'), keyExpires: prop_('GITHUB_TOKEN_EXPIRES') || '', r2: j('R2_USAGE'),
+    history: { rows: rows, lastKb: lastKb, maxKb: Math.round(MAX_BYTES / 1024) }, links: links, github: gh
+  };
 }
 
 function lastVersion_() {

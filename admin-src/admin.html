@@ -45,6 +45,19 @@
   h2 { font-size: 20px; letter-spacing: -0.02em; margin: 0 0 6px; }
   .lede { color: var(--mut); margin: 0 0 26px; max-width: none; }
   .panel { background: #FFFFFF; border: 1px solid var(--line); padding: 22px; }
+  /* Performance: horizontal bars, slowest first (slowest in teal); a meter with a line at two thirds */
+  .pf-total { font-size: 34px; font-weight: 800; letter-spacing: -0.03em; margin: 4px 0 2px; }
+  .pf-bars { list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 6px; }
+  .pf-bars li { display: grid; grid-template-columns: minmax(120px, 1.2fr) minmax(60px, 2fr) 52px; gap: 10px; align-items: center; font-size: 13px; }
+  .pf-track { height: 10px; background: #EEF0EF; border-radius: 2px; overflow: hidden; }
+  .pf-fill { display: block; height: 100%; background: #9AA3A0; }
+  .pf-bars li.slow .pf-fill { background: var(--teal); } .pf-bars li.slow { font-weight: 700; }
+  .pf-s { text-align: right; font-variant-numeric: tabular-nums; }
+  .pf-meter { position: relative; height: 12px; background: #EEF0EF; border-radius: 2px; margin: 6px 0 12px; }
+  .pf-meter .pf-fill { border-radius: 2px; background: var(--teal); } .pf-meter .pf-fill.warn { background: #C0392B; }
+  .pf-mark { position: absolute; top: -3px; bottom: -3px; width: 2px; background: #111111; }
+  .pf-row { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding: 10px 0; border-bottom: 1px solid var(--line); font-size: 14px; }
+  .pf-row:last-child { border-bottom: 0; } .pf-ok { color: #1E7D4F; font-weight: 700; } .pf-bad { color: #B00020; font-weight: 700; }
   .two { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 0.9fr); gap: 22px; align-items: start; }
   .lbl { font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; font-weight: 700; color: var(--mut); margin: 0 0 8px; }
   .previewbox { position: sticky; top: 84px; }
@@ -485,6 +498,7 @@
     { id: 'contact', label: 'Contact info & hours', short: 'Contact', g: 'Site setup' },
     { id: 'nav', label: 'Menu & header', short: 'Menu', g: 'Site setup' },
     { id: 'photos', label: 'Photos & videos', short: 'Photos', g: 'Site setup' },
+    { id: 'perf', label: 'Performance', short: 'Performance', g: 'Site setup' },
     { id: 'access', label: 'Admin access', short: 'Access', g: 'Site setup', ownerOnly: true }
   ];
   // Who's signed in (from the server), and the helpers the owner lets into the admin
@@ -757,18 +771,80 @@
     if (ENV.name !== 'live') $('envbar').innerHTML = '<div class="envbar"><b>TEST SITE</b> · Publishing here updates the test website only, not the real one.</div>';
     if (!pass || !ENV.api) return gate();
     $('main').innerHTML = '<div class="gate"><h1>Loading…</h1><p>Getting the latest published version.</p></div>';
-    const res = await api('load');
+    const t0 = performance.now(), res = await api('load'); const loadMs = performance.now() - t0;
     if (!res.ok) { if (res.code === 'signin') { pass = ''; try { sessionStorage.removeItem(PASS); } catch (e) {} return gate(res.error); } $('main').innerHTML = '<div class="gate"><h1>Couldn’t load the admin</h1><p>' + esc(res.error) + '</p><button type="button" class="btn primary" data-reboot="1">Try again</button></div>'; return; }
     document.body.classList.remove('gated'); $('signout').hidden = false;
     useServer(res.content, res.version, res.publishedAt); useLocks(res.locks);
     feedKeyServer = res.feedKey || ''; keyExpires = res.keyExpires || '';
+    perfFirst = { at: new Date().toISOString(), pageMs: Math.max(0, Math.round(t0)), ms: Math.round(loadMs), timing: res.timing || null, drawMs: 0 };
     who.email = res.email || ''; who.owner = !!res.owner; who.ownerEmail = res.ownerEmail || ''; helpers = res.helpers || [];
     $('signout').title = 'Signed in as ' + who.email;
     const saved = read(DRAFT); draft = saved ? pick(saved) : clone(live);
     // Photos that still load from the old Wix site have copies on this site now (images/wix/); the next Publish switches to them
     { const t = JSON.stringify(draft), t2 = t.replace(/https:\/\/static\.wixstatic\.com\/media\/([0-9a-f]{6}_[0-9a-f]{32})~mv2\.[a-z]+\/v1\/fill\/[^"\s)]*/g, 'images/wix/$1.jpg'); if (t2 !== t) { draft = JSON.parse(t2); saveDraft(); } }
     if (saved && read(DRAFT_BASE) != null && read(DRAFT_BASE) < serverVer) notice('You have unpublished changes on this device from before version ' + serverVer + ' was published. Check them in the preview before you publish, or press Discard to start from the live version.');
-    render();
+    { const d0 = performance.now(); render(); if (perfFirst) perfFirst.drawMs = Math.round(performance.now() - d0); }
+  }
+
+  // ---------- Site setup → Performance ----------
+  // How long things take behind the scenes, so it's easy to see what's slow and why (same idea as Plum Perfect's).
+  // The admin times its own opening here in the browser; the server times Publish and the 7am check (Code.gs perf_).
+  let perfFirst = null, perfLatest = null, perfInfo = null, perfBusy = false, perfMeasuring = false;
+  const pSecs = (ms) => ms == null ? '—' : ms < 100 ? '<0.1s' : (ms / 1000).toFixed(1) + 's';
+  const pWhen = (at) => { try { return new Date(at).toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }); } catch (e) { return String(at || ''); } };
+  const pBars = (rows) => { const shown = rows.filter(r => r[1] >= 50).sort((a, b) => b[1] - a[1]); const max = Math.max.apply(null, shown.map(r => r[1]).concat(1));
+    return '<ul class="pf-bars">' + shown.map((r, i) => '<li class="' + (i === 0 ? 'slow' : '') + '"><span>' + esc(r[0]) + '</span><span class="pf-track" aria-hidden="true"><span class="pf-fill" style="width: ' + (r[1] / max * 100).toFixed(1) + '%"></span></span><span class="pf-s">' + pSecs(r[1]) + '</span></li>').join('') + '</ul>'; };
+  const openRows = (l) => { const rows = []; if (l.pageMs) rows.push(['Loading the admin page', l.pageMs]);
+    if (l.timing && l.timing.total != null) { (l.timing.parts || []).forEach(p => rows.push([p[0], p[1]])); rows.push(['Google start-up and network', Math.max(0, l.ms - l.timing.total)]); }
+    else rows.push(['Google and the Sheet', l.ms]);
+    if (l.drawMs) rows.push(['Drawing the screen', l.drawMs]); return rows; };
+  const openTotal = (l) => openRows(l).reduce((n, r) => n + r[1], 0);
+  async function loadPerf() { if (perfBusy || !ENV) return; perfBusy = true; const r = await api('perf'); perfInfo = r && r.ok ? r : { error: (r && r.error) || 'Couldn’t get the numbers.' }; perfBusy = false; if (page === 'perf') render(); }
+  async function measureAgain() { if (perfMeasuring || !ENV) return; perfMeasuring = true; render(); const t0 = performance.now(); const r = await api('load'); const ms = performance.now() - t0;
+    const d0 = performance.now(); perfMeasuring = false; perfLatest = { at: new Date().toISOString(), ms: Math.round(ms), timing: r && r.timing || null, drawMs: 0 }; render(); perfLatest.drawMs = Math.round(performance.now() - d0); perfInfo = null; render(); }
+  const JOBS = [['dailyHealthCheck', 'Daily check (GitHub key, video storage)', 'every morning at 7']];
+  const GHJOBS = { 'Refresh class schedule from Studio Pro': 'Class schedule from Studio Pro (nightly)', 'Rebuild the studio calendar feed (studio.ics)': 'Studio calendar files', 'Rebuild the printable class schedule': 'Printable class schedule (PDF)' };
+  function vPerf() {
+    const head = '<h1>Performance</h1><p class="lede">How long things take behind the scenes, and whether the automatic jobs are running. If something feels slow, take a screenshot of this page and send it to Leigha. The first open after an update is always slower.</p>';
+    if (!ENV) return head + '<div class="note">These numbers come from the admin server, so they show on the test and live sites, not in this prototype.</div>';
+    if (!perfInfo && !perfBusy) setTimeout(loadPerf, 0);
+    const P = perfInfo || {}, f = perfFirst, l = perfLatest;
+    let h = head;
+    // Opening the admin
+    h += sec('Opening the admin', '', '<div class="panel">' + (f ? '<div class="pf-total">' + pSecs(openTotal(f)) + '</div><p class="hint" style="margin: 0;">This visit, opened ' + esc(pWhen(f.at)) + '</p>' + pBars(openRows(f)) : '<p class="hint">Still opening…</p>')
+      + (l ? '<p style="margin: 16px 0 0;"><b>Measured again: ' + pSecs(openTotal(l)) + '</b> <span class="hint">' + esc(pWhen(l.at)) + '</span></p>' + pBars(openRows(l)) : '')
+      + '<div class="row" style="margin-top: 14px; justify-content: flex-start;"><button type="button" class="btn" data-perfagain="1"' + (perfMeasuring ? ' disabled' : '') + '>' + (perfMeasuring ? 'Measuring…' : 'Measure again') + '</button></div></div>');
+    if (perfBusy && !perfInfo) return h + '<p class="lede">Loading the rest…</p>';
+    if (P.error) return h + '<div class="note">' + esc(P.error) + '</div>';
+    // Last Publish
+    const pub = P.publish;
+    h += sec('Last Publish', '', '<div class="panel">' + (pub ? '<div class="pf-total">' + pSecs(pub.ms) + '</div><p class="hint" style="margin: 0;">Version ' + esc(pub.version) + ' · ' + esc(pWhen(pub.at)) + ' · ' + esc(pub.kb) + ' KB · ' + (pub.ok ? '<span class="pf-ok">Website updated</span>' : '<span class="pf-bad">Website not updated</span>') + '</p>' + pBars(pub.steps || [])
+      + '<p class="hint" style="margin: 10px 0 0;">After that, GitHub takes about a minute to put the change on the website.</p>' : '<p class="hint" style="margin: 0;">Timed from the next Publish on.</p>') + '</div>');
+    // Scheduled jobs
+    const extra = JOBS.some(j => (P.triggers || {})[j[0]] > 1);
+    let jobs = JOBS.map(j => { const r = (P.runs || {})[j[0]], n = (P.triggers || {})[j[0]] || 0;
+      return '<div class="pf-row"><span><b>' + esc(j[1]) + '</b><br><span class="hint">Runs ' + esc(j[2]) + '. ' + (n ? '' : '<span class="pf-bad">Not scheduled: run setupHealthCheck in the script editor.</span>') + (n > 1 ? '<span class="pf-bad">Scheduled ' + n + ' times.</span>' : '') + '</span></span><span style="text-align: right;">'
+        + (r ? esc(pWhen(r.at)) + ' · ' + pSecs(r.ms) + '<br><span class="' + (/good/i.test(r.result) ? 'pf-ok' : 'pf-bad') + '">' + esc(r.result || '') + '</span>' : '<span class="hint">No timed run yet</span>') + '</span></div>' + (r && (r.steps || []).length > 1 ? pBars(r.steps) : ''); }).join('');
+    const gh = P.github || {};
+    jobs += (gh.runs || []).filter(w => GHJOBS[w.name]).map(w => '<div class="pf-row"><span><b>' + esc(GHJOBS[w.name]) + '</b><br><span class="hint">On GitHub</span></span><span style="text-align: right;">' + esc(pWhen(w.at)) + (w.ms > 0 ? ' · ' + pSecs(w.ms) : '') + '<br>'
+      + (w.status !== 'completed' ? '<span class="hint">Running now</span>' : w.result === 'success' ? '<span class="pf-ok">Worked</span>' : '<a class="pf-bad" href="' + esc(w.url) + '" target="_blank" rel="noopener">' + (w.result === 'cancelled' ? 'Cancelled' : 'Didn’t work') + ' · see why ↗</a>') + '</span></div>').join('');
+    if (gh.error) jobs += '<p class="hint">Couldn’t read GitHub’s jobs: ' + esc(gh.error) + '</p>';
+    h += sec('Scheduled jobs', '', '<div class="panel">' + (extra ? '<div class="note" style="margin-bottom: 10px;">A job is scheduled more than once, so it uses Google’s time twice. Ask Leigha to remove the extra copy.</div>' : '') + jobs + '</div>');
+    // Google's daily time
+    const rt = P.runtime || { today: 0, yesterday: 0, limitMin: 90, warnMin: 60 }, mins = (ms) => Math.round(ms / 60000);
+    const meter = (ms) => '<div class="pf-meter" role="img" aria-label="' + mins(ms) + ' of ' + rt.limitMin + ' minutes"><span class="pf-fill' + (mins(ms) >= rt.warnMin ? ' warn' : '') + '" style="display: block; width: ' + Math.min(100, ms / 60000 / rt.limitMin * 100).toFixed(1) + '%"></span><span class="pf-mark" style="left: ' + (rt.warnMin / rt.limitMin * 100).toFixed(1) + '%"></span></div>';
+    h += sec('Google’s daily time', 'Google gives scheduled jobs about ' + (rt.limitMin >= 120 ? rt.limitMin / 60 + ' hours' : rt.limitMin + ' minutes') + ' a day on this account. The line is at ' + rt.warnMin + ' minutes; past it, the jobs need trimming.',
+      '<div class="panel"><p style="margin: 0;"><b>Yesterday: ' + mins(rt.yesterday) + ' min</b></p>' + meter(rt.yesterday) + '<p style="margin: 0;"><b>Today so far: ' + mins(rt.today) + ' min</b></p>' + meter(rt.today) + '</div>');
+    // Calendars, size, health
+    const lk = P.links || {}, hs = P.history || {}, hl = P.health || {}, r2 = P.r2;
+    const days = P.keyExpires ? Math.round((new Date(P.keyExpires + 'T12:00:00') - new Date(todayISO + 'T12:00:00')) / 864e5) : null;
+    h += sec('Calendar subscriptions', '', '<div class="panel"><div class="pf-row"><span>Dancer calendar links</span><b>' + (lk.total || 0) + '</b></div><div class="pf-row"><span>Checked by a phone in the last 7 days</span><b>' + (lk.week || 0) + '</b></div></div>');
+    h += sec('Size', '', '<div class="panel"><div class="pf-row"><span>Saved versions (History tab)</span><b>' + (hs.rows || 0) + '</b></div><div class="pf-row"><span>Newest version</span><b>' + (hs.lastKb || 0) + ' KB of ' + Math.round((hs.maxKb || 2930) / 1024) + ' MB allowed</b></div></div>');
+    h += sec('Health', '', '<div class="panel">'
+      + '<div class="pf-row"><span>Website publishing key (GitHub)</span><b class="' + (days == null ? '' : days <= 30 ? 'pf-bad' : 'pf-ok') + '">' + (days == null ? 'Expiry not known yet' : days < 0 ? 'Expired ' + esc(fmtRange(P.keyExpires)) : 'Expires ' + esc(fmtRange(P.keyExpires)) + ' (' + days + ' days)') + '</b></div>'
+      + '<div class="pf-row"><span>Video storage (Cloudflare)</span><b>' + (!r2 ? '<span class="hint">Not set up yet</span>' : r2.error ? '<span class="pf-bad">Couldn’t read it</span>' : esc(r2.gb) + ' GB of 10 GB free · ' + Number(r2.b || 0).toLocaleString('en-US') + ' plays this month') + '</b></div>'
+      + '<div class="pf-row"><span>Last daily check</span><b>' + (hl.at ? esc(pWhen(hl.at)) + ' · ' + ((hl.problems || []).length ? '<span class="pf-bad">' + esc(hl.problems.map(x => x.name || x.title).join(', ')) + '</span>' : '<span class="pf-ok">All good</span>') : '<span class="hint">Not run yet</span>') + '</b></div></div>');
+    return h;
   }
 
   // ---------- pages ----------
@@ -1635,7 +1711,7 @@
   // ---------- render + events ----------
   function render() {
     navs(); status();
-    $('main').innerHTML = page === 'emails' ? vEmails() : page === 'season' ? vSeason() : page === 'company2' ? vCompany() : CPAGES[page] ? CPAGES[page]() : page === 'banner' ? vBanner() : page === 'recital' ? vRecital() : page === 'staff' ? vStaff() : page === 'homepage' ? vHomepage() : page === 'prices' ? vPrices() : page === 'nav' ? vNav() : page === 'photos' ? vPhotos() : page === 'featured' ? vFeatured() : page === 'calendar' ? vCalendar() : page === 'policies' ? vPolicies() : page === 'access' ? vAccess() : vHome();
+    $('main').innerHTML = page === 'emails' ? vEmails() : page === 'season' ? vSeason() : page === 'perf' ? vPerf() : page === 'company2' ? vCompany() : CPAGES[page] ? CPAGES[page]() : page === 'banner' ? vBanner() : page === 'recital' ? vRecital() : page === 'staff' ? vStaff() : page === 'homepage' ? vHomepage() : page === 'prices' ? vPrices() : page === 'nav' ? vNav() : page === 'photos' ? vPhotos() : page === 'featured' ? vFeatured() : page === 'calendar' ? vCalendar() : page === 'policies' ? vPolicies() : page === 'access' ? vAccess() : vHome();
     const pv = () => $('pv');
     if (page === 'banner') { bind('bText', 60, v => draft.banner.text = v, () => pv().innerHTML = bannerPreview()); bindPicker('bLink', v => draft.banner.href = v, () => pv().innerHTML = bannerPreview()); }
     if (page === 'homepage') { const h = draft.home, uh = () => $('pvHero').innerHTML = heroPreview();
@@ -1708,6 +1784,7 @@
     if (d.menu) { menuOpen = !menuOpen; navs(); return; }
     if (d.menux) { menuOpen = false; navs(); return; }
     if (d.go) return go(d.go);
+    if (d.perfagain) { measureAgain(); return; }
     if (d.who) { mailWho = d.who; const v = $('mailDraft') ? $('mailDraft').value : ''; render(); if ($('mailDraft')) $('mailDraft').value = v; return; }
     if (d.msample) { $('mailDraft').value = SAMPLE_EMAIL; return; }
     if (d.mslim) { const v = $('mailDraft').value.trim(); if (!v) return toast('Paste your email first.'); if (v.slice(0, 60) !== SAMPLE_EMAIL.slice(0, 60)) return toast('Prototype: try the sample email. The real admin rewrites any draft.'); mailOut = SAMPLE_SLIM; render(); $('mailDraft').value = v; return; }
